@@ -350,7 +350,7 @@
 <body>
     <div class="container">
         <header>
-            <h1> District Report Generator</h1>
+            <h1>📊 District Report Generator</h1>
             <p>Search for school districts and generate comprehensive recruitment reports</p>
         </header>
         
@@ -480,18 +480,24 @@
                     return;
                 }
                 
-                districtList.innerHTML = districts.map(district => `
+                districtList.innerHTML = districts.map(district => {
+                    const demographics = district.demographics || {};
+                    const frlText = demographics.free_reduced_lunch_pct ? `${demographics.free_reduced_lunch_pct}%` : 'N/A';
+                    const minorityText = demographics.minority_pct ? `${demographics.minority_pct}%` : 'N/A';
+                    
+                    return `
                     <div class="district-card">
                         <div class="district-info">
                             <h3>${district.name}</h3>
                             <p><strong>Location:</strong> ${district.county || 'N/A'}, ${district.state}</p>
                             <p><strong>Enrollment:</strong> ${(district.totalEnrollment || 0).toLocaleString()} | <strong>Schools:</strong> ${district.totalSchools || 0} | <strong>Jobs:</strong> ${district.totalJobs || 0}</p>
+                            <p><strong>FRL:</strong> ${frlText} | <strong>Minority:</strong> ${minorityText}</p>
                         </div>
                         <button class="btn btn-generate" onclick="openContactModal('${district.name.replace(/'/g, "\\'")}')">
                             Generate Report
                         </button>
                     </div>
-                `).join('');
+                `}).join('');
                 
             } catch (error) {
                 districtList.innerHTML = '<p class="loading" style="color: red;">Error searching districts. Please try again.</p>';

@@ -73,7 +73,13 @@ class DistrictReportGenerator:
         
         if not district:
             return None
-            
+        
+        # Get district ID for aggregating school data
+        district_id = district.get('_id')
+        
+        # Aggregate demographics from schools
+        demographics = self.calculate_district_demographics(district_id)
+        
         return {
             "name": district.get("name", "Unknown"),
             "leaId": district.get("leaId", ""),
@@ -85,6 +91,68 @@ class DistrictReportGenerator:
             "is_target_client": district.get("isTargetClient", False),
             "is_radar_client": district.get("isRadarClient", False),
             "coordinates": district.get("coordinates", {}),
+            "demographics": demographics
+        }
+    
+    def calculate_district_demographics(self, district_id):
+        """Aggregate demographic data from schools to district level"""
+        schools = list(self.db.schools.find({"districtId": district_id}))
+        
+        if not schools:
+            return {
+                "free_reduced_lunch_pct": None,
+                "white_pct": None,
+                "minority_pct": None,
+                "total_frl": 0,
+                "total_enrollment": 0
+            }
+        
+        total_frl = 0
+        total_enrollment = 0
+        total_white = 0
+        total_minority = 0
+        
+        for school in schools:
+            # Free/Reduced Lunch
+            frl = school.get("freeReducedLunch", {})
+            frl_total = frl.get("total", 0)
+            if frl_total > 0:  # Only count if valid data
+                total_frl += frl_total
+            
+            # Enrollment
+            enrollment = school.get("enrollment", {})
+            school_total = enrollment.get("total", 0)
+            if school_total > 0:
+                total_enrollment += school_total
+            
+            # Demographics
+            demographics = school.get("demographics", {})
+            white = demographics.get("white", 0)
+            total_white += white
+            
+            # Minority = all non-white
+            minority = (
+                demographics.get("americanIndian", 0) +
+                demographics.get("asian", 0) +
+                demographics.get("black", 0) +
+                demographics.get("hispanic", 0) +
+                demographics.get("pacificIslander", 0) +
+                demographics.get("twoOrMore", 0)
+            )
+            total_minority += minority
+        
+        # Calculate percentages
+        frl_pct = (total_frl / total_enrollment * 100) if total_enrollment > 0 else None
+        total_demographic = total_white + total_minority
+        white_pct = (total_white / total_demographic * 100) if total_demographic > 0 else None
+        minority_pct = (total_minority / total_demographic * 100) if total_demographic > 0 else None
+        
+        return {
+            "free_reduced_lunch_pct": round(frl_pct, 1) if frl_pct else None,
+            "white_pct": round(white_pct, 1) if white_pct else None,
+            "minority_pct": round(minority_pct, 1) if minority_pct else None,
+            "total_frl": total_frl,
+            "total_enrollment": total_enrollment
         }
     
     def find_similar_districts(self, district_data, limit=3):
@@ -130,8 +198,8 @@ class DistrictReportGenerator:
         ]
     
     def scrape_job_website_with_indeed(self, district_name, state, similar_districts):
-        """Enhanced job scraping with Indeed analysis"""
-        prompt = f"""Search the web to analyze job postings for {district_name} in {state}.
+        """Enhanced job scraping with Indeed analysis and financial health check"""
+        prompt = f"""Search the web to analyze job postings and financial health for {district_name} in {state}.
 
 PART 1 - District Career Page:
 1. Find their official careers/employment page URL
@@ -156,12 +224,22 @@ For each district, check Indeed and note:
 
 Then provide an overall competitiveness score for {district_name} vs. similar districts.
 
+PART 4 - Financial Health Assessment:
+Research {district_name}'s financial situation:
+1. Search for recent budget reports, financial statements, or audit reports
+2. Look for news about budget deficits, surpluses, or financial challenges
+3. Check for mentions of bond measures or funding initiatives
+4. Find student-per-teacher ratios or per-pupil spending if available
+5. Provide a Financial Health Score (1-10, where 10 = excellent financial health)
+   - Consider: recent budget news, stability, per-pupil spending trends
+   - Include brief reasoning for the score
+
 Format with clear sections and include relevant URLs."""
 
         try:
             message = self.anthropic.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=3000,
+                max_tokens=3500,
                 tools=[{
                     "type": "web_search_20250305",
                     "name": "web_search"
@@ -233,6 +311,10 @@ MEETING CONTACTS RESEARCH:
 {contact_research}
 """
         
+        demographics = district_data.get('demographics', {})
+        frl_pct = demographics.get('free_reduced_lunch_pct', 'N/A')
+        minority_pct = demographics.get('minority_pct', 'N/A')
+        
         prompt = f"""Create a concise, well-formatted district profile for {district_name}.
 
 BASIC INFORMATION:
@@ -240,11 +322,13 @@ BASIC INFORMATION:
 - Schools: {district_data['num_schools']}
 - Location: {district_data['county']}, {district_data['state']}
 - LEA ID: {district_data['leaId']}
+- Free/Reduced Lunch: {frl_pct}%
+- Minority Population: {minority_pct}%
 
 SIMILAR DISTRICTS:
 {json.dumps(similar_districts, indent=2)}
 
-JOB POSTINGS ANALYSIS:
+JOB POSTINGS & FINANCIAL ANALYSIS:
 {job_scrape_info}
 
 {contact_section}
@@ -258,13 +342,19 @@ Search for recent school board meeting minutes/agendas from {district_name} focu
 CRITICAL: For every claim you make, include the source URL in brackets like [Source: https://example.com]
 
 Create sections (use these exact headers):
-1. DISTRICT OVERVIEW
+1. DISTRICT OVERVIEW (include key demographics and financial health context)
 2. CURRENT HIRING LANDSCAPE
 3. INDEED COMPETITIVENESS ANALYSIS
-4. SCHOOL BOARD INSIGHTS
-5. SIMILAR DISTRICTS COMPARISON{"" if not contact_research else ""}
+4. FINANCIAL HEALTH ASSESSMENT (expand on financial score from research)
+5. SCHOOL BOARD INSIGHTS{"" if not contact_research else ""}
 {"6. MEETING CONTACTS INTEL" if contact_research else ""}
-{"7. SALES APPROACH" if contact_research else "6. SALES APPROACH"}
+{"7. SIMILAR DISTRICTS COMPARISON" if contact_research else "6. SIMILAR DISTRICTS COMPARISON"}
+{"8. SALES APPROACH" if contact_research else "7. SALES APPROACH"}
+
+In SALES APPROACH, consider:
+- How FRL% and demographics affect recruiting challenges
+- How financial health impacts their ability to hire/retain
+- Budget constraints or opportunities
 
 Keep each section concise (3-4 sentences max). Focus on actionable insights. Include source URLs."""
 
@@ -379,8 +469,16 @@ Keep each section concise (3-4 sentences max). Focus on actionable insights. Inc
         # Basic Information
         story.append(Paragraph("<b>BASIC INFORMATION</b>", heading_style))
         data = report['basic_data']
-        basic_info = f"""Enrollment: {data['enrollment']:,} | Schools: {data['num_schools']} | Location: {data['county']}, {data['state']}<br/>
-Target Client: {'Yes' if data['is_target_client'] else 'No'} | Radar Client: {'Yes' if data['is_radar_client'] else 'No'}"""
+        demographics = data.get('demographics', {})
+        
+        # Format demographics
+        frl_text = f"{demographics.get('free_reduced_lunch_pct', 'N/A')}%" if demographics.get('free_reduced_lunch_pct') else "N/A"
+        white_text = f"{demographics.get('white_pct', 'N/A')}%" if demographics.get('white_pct') else "N/A"
+        minority_text = f"{demographics.get('minority_pct', 'N/A')}%" if demographics.get('minority_pct') else "N/A"
+        
+        basic_info = f"""<b>District Profile:</b> Enrollment: {data['enrollment']:,} | Schools: {data['num_schools']} | Location: {data['county']}, {data['state']}<br/>
+<b>Demographics:</b> Free/Reduced Lunch: {frl_text} | White: {white_text} | Minority: {minority_text}<br/>
+<b>Status:</b> Target Client: {'Yes' if data['is_target_client'] else 'No'} | Radar Client: {'Yes' if data['is_radar_client'] else 'No'}"""
         story.append(Paragraph(basic_info, body_style))
         story.append(Spacer(1, 0.15*inch))
         
@@ -487,6 +585,14 @@ def search():
         min_enrollment=data.get('min_enrollment'),
         max_enrollment=data.get('max_enrollment')
     )
+    
+    # Add demographics to each district
+    for district in districts:
+        district_id = district.get('_id')
+        if district_id:
+            from bson import ObjectId
+            demographics = generator.calculate_district_demographics(ObjectId(district_id))
+            district['demographics'] = demographics
     
     return jsonify(districts)
 
