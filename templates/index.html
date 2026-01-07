@@ -469,21 +469,3 @@
     </script>
 </body>
 </html>
-```
-
-## Step 4: Update Procfile for Render
-
-Create/update `Procfile`:
-```
-web: gunicorn app:app
-```
-
-## Step 5: Create `.gitignore` (if not already there)
-
-Make sure your `.gitignore` has:
-```
-.env
-reports/
-*.pyc
-__pycache__/
-venv/
