@@ -386,17 +386,22 @@ Keep each section concise (3-4 sentences max). Focus on actionable insights. Inc
         
         similar_districts = self.find_similar_districts(district_data)
         
+        # Track API calls for cost estimation
+        api_calls = []
+        
         # Enhanced job scraping with Indeed analysis
         job_scrape_info = self.scrape_job_website_with_indeed(
             district_name, 
             district_data['state'],
             similar_districts
         )
+        api_calls.append({"type": "job_scraping", "tokens": 3500})
         
         # Research contacts if provided
         contact_research = None
         if contact_names:
             contact_research = self.research_contacts(contact_names, district_name)
+            api_calls.append({"type": "contact_research", "tokens": 3000})
         
         # Generate analysis
         claude_analysis = self.analyze_with_claude(
@@ -406,6 +411,14 @@ Keep each section concise (3-4 sentences max). Focus on actionable insights. Inc
             job_scrape_info,
             contact_research
         )
+        api_calls.append({"type": "analysis", "tokens": 4000})
+        
+        # Calculate estimated cost (Claude Sonnet 4 pricing: ~$3 per 1M input tokens, ~$15 per 1M output tokens)
+        # Rough estimate: assume 60% input, 40% output
+        total_tokens = sum(call["tokens"] for call in api_calls)
+        input_tokens = int(total_tokens * 0.6)
+        output_tokens = int(total_tokens * 0.4)
+        estimated_cost = (input_tokens / 1_000_000 * 3) + (output_tokens / 1_000_000 * 15)
         
         report = {
             "district_name": district_name,
@@ -414,7 +427,9 @@ Keep each section concise (3-4 sentences max). Focus on actionable insights. Inc
             "similar_districts": similar_districts,
             "job_scrape_info": job_scrape_info,
             "contact_research": contact_research,
-            "claude_analysis": claude_analysis
+            "claude_analysis": claude_analysis,
+            "api_calls": api_calls,
+            "estimated_cost": round(estimated_cost, 3)
         }
         
         return report
@@ -548,7 +563,8 @@ Keep each section concise (3-4 sentences max). Focus on actionable insights. Inc
                 "filename": r["filename"],
                 "district_name": r["district_name"],
                 "created": r["generated_at"].isoformat(),
-                "size": len(base64.b64decode(r["pdf_data"]))
+                "size": len(base64.b64decode(r["pdf_data"])),
+                "estimated_cost": r["report_json"].get("estimated_cost", 0)
             }
             for r in reports
         ]
@@ -650,6 +666,48 @@ def download_report(filename):
             mimetype='application/pdf',
             headers={'Content-Disposition': f'attachment;filename={filename}'}
         )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/report-preview/<filename>')
+def preview_report(filename):
+    """Get report JSON data for preview"""
+    try:
+        report = generator.db.generated_reports.find_one({"filename": filename})
+        
+        if not report:
+            return jsonify({"error": "Report not found"}), 404
+        
+        # Return the report JSON without the PDF data
+        return jsonify({
+            "filename": report["filename"],
+            "district_name": report["district_name"],
+            "generated_at": report["generated_at"].isoformat(),
+            "report_json": report["report_json"]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cost-stats')
+def cost_stats():
+    """Get total cost statistics"""
+    try:
+        reports = list(generator.db.generated_reports.find())
+        
+        if not reports:
+            return jsonify({
+                "total_reports": 0,
+                "total_cost": 0,
+                "avg_cost_per_report": 0
+            })
+        
+        total_cost = sum(r["report_json"].get("estimated_cost", 0) for r in reports)
+        
+        return jsonify({
+            "total_reports": len(reports),
+            "total_cost": round(total_cost, 2),
+            "avg_cost_per_report": round(total_cost / len(reports), 3)
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -6,7 +6,6 @@
     <title>District Report Generator</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Proxima+Nova:wght@400;500;600&display=swap');
         
         * {
             margin: 0;
@@ -15,7 +14,7 @@
         }
         
         body {
-            font-family: 'Proxima Nova', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Proxima Nova', Roboto, sans-serif;
             background: linear-gradient(135deg, #02223C 0%, #116753 100%);
             min-height: 100vh;
             padding: 20px;
@@ -317,7 +316,7 @@
             border: 1px solid #89BEF4;
             border-radius: 6px;
             font-size: 14px;
-            font-family: 'Proxima Nova', sans-serif;
+            font-family: inherit;
             resize: vertical;
         }
         
@@ -345,12 +344,154 @@
             background: #78ade3;
             box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
         }
+        
+        #reportSearch {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #89BEF4;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        #reportSearch:focus {
+            outline: none;
+            border-color: #D776C2;
+            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
+        }
+        
+        #reportSearch::placeholder {
+            color: #999;
+        }
+        
+        .btn-view {
+            background: #89BEF4;
+            color: #02223C;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        
+        .btn-view:hover {
+            background: #78ade3;
+            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
+        }
+        
+        .report-preview {
+            margin-top: 15px;
+            border: 2px solid #89BEF4;
+            border-radius: 8px;
+            background: #f8f9fa;
+            overflow: hidden;
+        }
+        
+        .preview-content {
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
+            color: white;
+        }
+        
+        .preview-header h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .btn-close {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+        
+        .btn-close:hover {
+            background: white;
+            color: #02223C;
+        }
+        
+        .preview-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .preview-section:last-child {
+            border-bottom: none;
+        }
+        
+        .preview-section h4 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            color: #02223C;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        
+        .preview-section p {
+            margin: 8px 0;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .preview-section pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .preview-loading {
+            padding: 40px;
+            text-align: center;
+            color: #666;
+        }
+        
+        .preview-error {
+            padding: 20px;
+            background: #fee2e2;
+            color: #991b1b;
+            border-radius: 6px;
+            margin: 10px;
+        }
+        
+        .cost-stats {
+            background: linear-gradient(135deg, #E8F0CA 0%, #FED46B 100%);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #02223C;
+            border: 2px solid #116753;
+        }
+        
+        .cost-stats span {
+            margin: 0 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>📊 District Report Generator</h1>
+            <h1>District Report Generator</h1>
             <p>Search for school districts and generate comprehensive recruitment reports</p>
         </header>
         
@@ -405,7 +546,13 @@
             
             <!-- Reports Section -->
             <div class="reports-section">
-                <h2>📁 Previous Reports</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin: 0;">📁 Previous Reports</h2>
+                    <div id="costStats" class="cost-stats"></div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <input type="text" id="reportSearch" placeholder="🔍 Search reports by district name..." onkeyup="filterReports()">
+                </div>
                 <div id="reportsList"></div>
             </div>
         </div>
@@ -430,11 +577,31 @@
     
     <script>
         let currentDistrict = null;
+        let allReports = []; // Store all reports for filtering
         
         // Load previous reports on page load
         window.onload = function() {
             loadReports();
+            loadCostStats();
         };
+        
+        async function loadCostStats() {
+            try {
+                const response = await fetch('/api/cost-stats');
+                const stats = await response.json();
+                
+                const costStatsDiv = document.getElementById('costStats');
+                costStatsDiv.innerHTML = `
+                    Total: $${stats.total_cost.toFixed(2)} 
+                    <span>|</span> 
+                    Reports: ${stats.total_reports} 
+                    <span>|</span> 
+                    Avg: $${stats.avg_cost_per_report.toFixed(3)}/report
+                `;
+            } catch (error) {
+                console.error('Error loading cost stats:', error);
+            }
+        }
         
         function showMessage(message, type = 'success') {
             const messageArea = document.getElementById('messageArea');
@@ -531,7 +698,21 @@
         }
         
         async function generateReport(districtName, contactNames) {
-            showMessage(`⏳ Generating enhanced report for ${districtName}... This may take 2-3 minutes.`, 'success');
+            const messageArea = document.getElementById('messageArea');
+            let seconds = 0;
+            
+            // Show initial message with timer
+            const updateTimer = setInterval(() => {
+                seconds++;
+                const minutes = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                const timeStr = `${minutes}:${secs.toString().padStart(2, '0')}`;
+                messageArea.innerHTML = `<div class="message success">⏳ Generating enhanced report for ${districtName}... (${timeStr} elapsed)</div>`;
+            }, 1000);
+            
+            // Create AbortController with longer timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
             
             try {
                 const response = await fetch('/api/generate-report', {
@@ -542,8 +723,14 @@
                     body: JSON.stringify({
                         district_name: districtName,
                         contact_names: contactNames
-                    })
+                    }),
+                    signal: controller.signal,
+                    // Prevent browser from timing out
+                    keepalive: true
                 });
+                
+                clearTimeout(timeoutId);
+                clearInterval(updateTimer);
                 
                 const result = await response.json();
                 
@@ -552,16 +739,24 @@
                     return;
                 }
                 
-                showMessage(`✅ Report generated successfully for ${districtName}!`, 'success');
+                showMessage(`✅ Report generated successfully for ${districtName}! (${Math.floor(seconds / 60)}m ${seconds % 60}s)`, 'success');
                 
-                // Reload reports list
+                // Reload reports list and cost stats
                 loadReports();
+                loadCostStats();
                 
                 // Auto-download the PDF
                 window.location.href = `/api/download/${result.pdf_filename}`;
                 
             } catch (error) {
-                showMessage(`❌ Error generating report. Please try again.`, 'error');
+                clearTimeout(timeoutId);
+                clearInterval(updateTimer);
+                
+                if (error.name === 'AbortError') {
+                    showMessage(`❌ Request timed out after 5 minutes. The report may still be generating. Check "Previous Reports" in a moment.`, 'error');
+                } else {
+                    showMessage(`❌ Error generating report: ${error.message}. Please try again.`, 'error');
+                }
                 console.error('Generate error:', error);
             }
         }
@@ -574,30 +769,146 @@
                 const response = await fetch('/api/reports');
                 const reports = await response.json();
                 
+                allReports = reports; // Store for filtering
+                
                 if (reports.length === 0) {
                     reportsList.innerHTML = '<p class="loading">No reports generated yet.</p>';
                     return;
                 }
                 
-                reportsList.innerHTML = reports.map(report => {
-                    const date = new Date(report.created).toLocaleString();
-                    const sizeMB = (report.size / 1024 / 1024).toFixed(2);
-                    return `
-                        <div class="report-item">
-                            <div class="report-info">
-                                <h4>${report.district_name}</h4>
-                                <small>Created: ${date} | Size: ${sizeMB} MB</small>
-                            </div>
-                            <button class="btn btn-download" onclick="downloadReport('${report.filename}')">
-                                Download PDF
-                            </button>
-                        </div>
-                    `;
-                }).join('');
+                displayReports(reports);
                 
             } catch (error) {
                 reportsList.innerHTML = '<p class="loading" style="color: red;">Error loading reports.</p>';
                 console.error('Load reports error:', error);
+            }
+        }
+        
+        function filterReports() {
+            const searchTerm = document.getElementById('reportSearch').value.toLowerCase();
+            
+            if (!searchTerm) {
+                displayReports(allReports);
+                return;
+            }
+            
+            const filtered = allReports.filter(report => 
+                report.district_name.toLowerCase().includes(searchTerm)
+            );
+            
+            displayReports(filtered);
+        }
+        
+        function displayReports(reports) {
+            const reportsList = document.getElementById('reportsList');
+            
+            if (reports.length === 0) {
+                reportsList.innerHTML = '<p class="loading">No reports match your search.</p>';
+                return;
+            }
+            
+            reportsList.innerHTML = reports.map(report => {
+                const date = new Date(report.created).toLocaleString();
+                const sizeMB = (report.size / 1024 / 1024).toFixed(2);
+                const reportId = report.filename.replace(/[^a-zA-Z0-9]/g, '_');
+                const cost = report.estimated_cost || 0;
+                
+                return `
+                    <div class="report-item">
+                        <div class="report-info">
+                            <h4>${report.district_name}</h4>
+                            <small>Created: ${date} | Size: ${sizeMB} MB | Cost: $${cost.toFixed(3)}</small>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-view" onclick="toggleReportPreview('${reportId}', '${report.filename}')">
+                                👁️ View
+                            </button>
+                            <button class="btn btn-download" onclick="downloadReport('${report.filename}')">
+                                Download PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div id="preview_${reportId}" class="report-preview" style="display: none;">
+                        <div class="preview-loading">Loading preview...</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        async function toggleReportPreview(reportId, filename) {
+            const previewDiv = document.getElementById(`preview_${reportId}`);
+            
+            // If already open, close it
+            if (previewDiv.style.display === 'block') {
+                previewDiv.style.display = 'none';
+                return;
+            }
+            
+            // Show loading
+            previewDiv.style.display = 'block';
+            previewDiv.innerHTML = '<div class="preview-loading"><div class="spinner"></div><p>Loading report preview...</p></div>';
+            
+            try {
+                // Fetch the report data
+                const response = await fetch(`/api/report-preview/${filename}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    previewDiv.innerHTML = `<div class="preview-error">Error loading preview: ${data.error}</div>`;
+                    return;
+                }
+                
+                // Build the preview HTML
+                const report = data.report_json;
+                const demographics = report.basic_data.demographics || {};
+                
+                let previewHTML = `
+                    <div class="preview-content">
+                        <div class="preview-header">
+                            <h3>${report.district_name}</h3>
+                            <button class="btn-close" onclick="toggleReportPreview('${reportId}', '${filename}')">✕</button>
+                        </div>
+                        
+                        <div class="preview-section">
+                            <h4>📋 Basic Information</h4>
+                            <p><strong>Enrollment:</strong> ${report.basic_data.enrollment.toLocaleString()}</p>
+                            <p><strong>Schools:</strong> ${report.basic_data.num_schools}</p>
+                            <p><strong>Location:</strong> ${report.basic_data.county}, ${report.basic_data.state}</p>
+                            <p><strong>Free/Reduced Lunch:</strong> ${demographics.free_reduced_lunch_pct || 'N/A'}%</p>
+                            <p><strong>Minority Population:</strong> ${demographics.minority_pct || 'N/A'}%</p>
+                        </div>
+                        
+                        <div class="preview-section">
+                            <h4>🔗 Similar Districts</h4>
+                            ${report.similar_districts.map(d => `
+                                <p>• ${d.name} (${d.county}) - ${d.enrollment.toLocaleString()} students</p>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="preview-section">
+                            <h4>💼 Job Postings Analysis</h4>
+                            <pre>${report.job_scrape_info}</pre>
+                        </div>
+                        
+                        ${report.contact_research ? `
+                        <div class="preview-section">
+                            <h4>🤝 Contact Research</h4>
+                            <pre>${report.contact_research}</pre>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="preview-section">
+                            <h4>🤖 Claude Analysis</h4>
+                            <pre>${report.claude_analysis}</pre>
+                        </div>
+                    </div>
+                `;
+                
+                previewDiv.innerHTML = previewHTML;
+                
+            } catch (error) {
+                previewDiv.innerHTML = `<div class="preview-error">Error loading preview: ${error.message}</div>`;
+                console.error('Preview error:', error);
             }
         }
         
