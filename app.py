@@ -492,7 +492,7 @@ Keep each section concise (3-4 sentences max). Focus on actionable insights. Inc
             jobs_info = f"• Current Job Postings: {jobs_data}" if jobs_data else "• Job posting data not available (district may not use Applitrack)"
             
             # Build prompt
-            prompt = f"""You are a sales strategist preparing for a call with {district_name}. Using the data provided AND a targeted web search, create a comprehensive demo preparation script.
+            prompt = f"""You are a sales strategist preparing for a call with {district_name}. Using the data provided AND ONE targeted web search, create a comprehensive demo preparation script.
 
 ═══════════════════════════════════════════════════════════════
 DISTRICT PROFILE: {district_name}
@@ -520,65 +520,59 @@ SIMILAR DISTRICTS:
 {chr(10).join([f"• {d.get('name', 'Unknown')}: {d.get('enrollment', 0):,} students, {d.get('num_schools', 0)} schools{', ' + str(d.get('total_jobs', 0)) + ' jobs' if d.get('total_jobs') else ''}" for d in similar_districts[:5]])}
 
 ═══════════════════════════════════════════════════════════════
-WEB RESEARCH TASK:
+WEB RESEARCH TASK (KEEP IT MINIMAL):
 ═══════════════════════════════════════════════════════════════
 
-Search for: "{district_name} {district_data.get('state', '')} school board minutes staffing OR recruiting OR workforce OR teacher shortage OR hiring"
+Do ONE search: "{district_name} {district_data.get('state', '')} school board minutes staffing recruiting 2024"
 
-Find recent (2024-2025):
-1. Board meeting discussions about staffing/recruiting challenges
-2. News stories about workforce issues or teacher shortages
-3. Mentions of recruitment strategies, hiring events, or external partners
+IMPORTANT: Only look at the TOP 2-3 results to stay efficient. Find:
+1. Recent board meeting discussions about staffing/recruiting
+2. News about workforce issues or teacher shortages
+3. Mentions of recruitment strategies or external partners
 4. Budget discussions related to personnel
 
-Include specific quotes, dates, and source URLs.
+If no relevant results found in top 2-3, use the data provided instead.
+Include dates and source URLs for anything you find.
 
 ═══════════════════════════════════════════════════════════════
 CREATE DEMO SCRIPT WITH THESE SECTIONS:
 ═══════════════════════════════════════════════════════════════
 
 1. OPENING QUESTIONS (5-7 questions)
-   Reference their data AND recent board/news findings.
-   Example: "I saw in your October board minutes you discussed SPED staffing. With {district_data.get('enrollment', 0):,} students, is that still your biggest challenge?"
+   Reference their data AND recent board/news findings if available.
+   If no board minutes found, base questions on data alone.
+   Example: "With {district_data.get('enrollment', 0):,} students and {demographics.get('free_reduced_lunch_pct', 'N/A')}% FRL, how is recruiting going?"
 
-2. RECENT CONTEXT (3-4 insights from web search)
-   What did you learn from board minutes and news?
-   - Recent staffing challenges mentioned
-   - Recruitment initiatives they're trying  
-   - Budget constraints affecting hiring
-   - External partnerships mentioned
-   Include dates and source URLs.
+2. RECENT CONTEXT (2-3 insights)
+   If board minutes/news found: Quote specific findings with dates and sources.
+   If no board minutes found: Note "No recent public board discussions found. Focus on data-driven insights below."
 
 3. KEY TALKING POINTS (4-5 points)
-   What to emphasize given their situation + recent context.
-   Connect our solution to problems mentioned in search.
+   Based on their demographics, size, and any recent context found.
 
 4. PAIN POINTS TO PROBE (3-4 challenges)
-   Based on data AND board/news mentions.
-   Reference specific issues from search results.
+   Based on data and typical challenges for districts of this profile.
 
 5. COMPETITIVE CONTEXT (2-3 insights)
-   Compare to similar districts using the data.
+   Compare to similar districts using the data provided.
 
 6. VALUE PROPOSITION ANGLE (1 paragraph)
-   Given their specific situation AND recent challenges.
-   Connect to problems mentioned in board minutes/news.
+   Tailored to their specific situation.
 
 7. OBJECTION HANDLING (2-3 objections)
-   Based on profile and any budget/contract mentions in search.
+   Based on their profile (size, budget indicators, etc).
 
 8. CLOSING RECOMMENDATIONS (2-3 strategies)
+   Specific to this district's situation.
 
 ═══════════════════════════════════════════════════════════════
 FORMATTING:
 ═══════════════════════════════════════════════════════════════
 
 • Use specific numbers from data
-• Reference specific board meetings/news with dates
-• Include source URLs for all findings
-• Questions should reference recent events
-• Bold key numbers and developments
-• Keep concise but complete
+• Include source URLs for any web findings
+• Keep concise - total response under 2000 words
+• Make it actionable for sales call
 
 Begin:"""
 
@@ -591,8 +585,7 @@ Begin:"""
                 max_tokens=3500,
                 tools=[{
                     "type": "web_search_20250305",
-                    "name": "web_search",
-                    "max_search_results": 3  # CRITICAL: Only 3 results
+                    "name": "web_search"
                 }],
                 messages=[{"role": "user", "content": prompt}]
             )
