@@ -1,1612 +1,940 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>District Report Generator</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(2, 34, 60, 0.4);
-            overflow: hidden;
-        }
-        
-        header {
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        
-        header h1 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 32px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        
-        header p {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-        
-        .content {
-            padding: 30px;
-        }
-        
-        .search-section {
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-        }
-        
-        .search-section h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #02223C;
-        }
-        
-        .filters {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .filter-group label {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: #02223C;
-        }
-        
-        .filter-group input,
-        .filter-group select {
-            padding: 10px;
-            border: 1px solid #89BEF4;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        
-        .filter-group input:focus,
-        .filter-group select:focus {
-            outline: none;
-            border-color: #D776C2;
-            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
-        }
-        
-        .btn {
-            background: linear-gradient(135deg, #116753 0%, #02223C 100%);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(17, 103, 83, 0.4);
-        }
-        
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .results {
-            margin-top: 30px;
-        }
-        
-        .results h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #02223C;
-        }
-        
-        .district-list {
-            display: grid;
-            gap: 15px;
-        }
-        
-        .district-card {
-            border: 1px solid #89BEF4;
-            border-radius: 8px;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: box-shadow 0.2s, border-color 0.2s;
-        }
-        
-        .district-card:hover {
-            box-shadow: 0 4px 12px rgba(137, 190, 244, 0.3);
-            border-color: #D776C2;
-        }
-        
-        .district-info h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #02223C;
-        }
-        
-        .district-info p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-        
-        .district-actions {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .btn-demo {
-            background: linear-gradient(135deg, #89BEF4 0%, #02223C 100%);
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        .btn-demo:hover {
-            background: linear-gradient(135deg, #78ade3 0%, #116753 100%);
-            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
-        }
-        
-        .btn-generate {
-            background: linear-gradient(135deg, #D776C2 0%, #89BEF4 100%);
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        .btn-generate:hover {
-            background: linear-gradient(135deg, #c565b1 0%, #78ade3 100%);
-            box-shadow: 0 5px 15px rgba(215, 118, 194, 0.4);
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        
-        .spinner {
-            border: 3px solid #E8F0CA;
-            border-top: 3px solid #116753;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .message {
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-        }
-        
-        .message.success {
-            background: #E8F0CA;
-            color: #116753;
-            border: 1px solid #116753;
-        }
-        
-        .message.error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #ef4444;
-        }
-        
-        /* Demo Section Styles */
-        .demo-section {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e8f0f5 100%);
-            border: 2px solid #89BEF4;
-            border-radius: 12px;
-            padding: 0;
-            margin-bottom: 30px;
-            overflow: hidden;
-            display: none;
-        }
-        
-        .demo-header {
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            color: white;
-            padding: 20px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .demo-header h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin: 0;
-            font-size: 24px;
-        }
-        
-        .btn-toggle {
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid white;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .btn-toggle:hover {
-            background: white;
-            color: #02223C;
-        }
-        
-        .demo-content {
-            padding: 30px;
-        }
-        
-        .demo-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            margin-bottom: 25px;
-            overflow: hidden;
-            border: 1px solid #e0e0e0;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-        
-        .demo-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        }
-        
-        .demo-card-header {
-            background: linear-gradient(135deg, #89BEF4 20%, #D776C2 100%);
-            padding: 20px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .demo-number {
-            background: white;
-            color: #02223C;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 700;
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-        
-        .demo-card-header h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: white;
-            margin: 0;
-            font-size: 20px;
-        }
-        
-        .demo-card-body {
-            padding: 30px;
-        }
-        
-        /* Discovery Questions Styles */
-        .question-group {
-            margin-bottom: 30px;
-        }
-        
-        .question-group h4 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 15px;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .question-icon {
-            font-size: 24px;
-        }
-        
-        .question-item {
-            background: #f8f9fa;
-            border-left: 4px solid #89BEF4;
-            padding: 15px 20px;
-            margin-bottom: 12px;
-            border-radius: 0 8px 8px 0;
-            transition: all 0.3s;
-        }
-        
-        .question-item:hover {
-            background: #E8F0CA;
-            border-left-color: #116753;
-            transform: translateX(5px);
-        }
-        
-        .question-text {
-            color: #333;
-            font-size: 15px;
-            line-height: 1.6;
-            margin: 0;
-        }
-        
-        .data-insight {
-            background: #FED46B;
-            border: 2px solid #116753;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        
-        .data-insight h5 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin: 0 0 15px 0;
-            font-size: 16px;
-        }
-        
-        .insight-stat {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(2, 34, 60, 0.1);
-        }
-        
-        .insight-stat:last-child {
-            border-bottom: none;
-        }
-        
-        .stat-label {
-            font-weight: 600;
-            color: #02223C;
-        }
-        
-        .stat-value {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 700;
-            color: #116753;
-            font-size: 18px;
-        }
-        
-        /* Value Proposition Styles */
-        .value-prop-intro {
-            background: linear-gradient(135deg, #E8F0CA 0%, #FED46B 100%);
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            text-align: center;
-            border: 2px solid #116753;
-        }
-        
-        .intro-question {
-            font-size: 20px;
-            color: #02223C;
-            margin: 0;
-        }
-        
-        .value-statement {
-            font-size: 18px;
-            line-height: 1.8;
-            color: #333;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
-        .value-points {
-            display: grid;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .value-point {
-            display: flex;
-            gap: 15px;
-            align-items: start;
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            transition: all 0.3s;
-        }
-        
-        .value-point:hover {
-            background: white;
-            border-color: #89BEF4;
-            box-shadow: 0 4px 12px rgba(137, 190, 244, 0.2);
-        }
-        
-        .value-icon {
-            background: linear-gradient(135deg, #116753 0%, #02223C 100%);
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 18px;
-            flex-shrink: 0;
-        }
-        
-        .value-text strong {
-            display: block;
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 16px;
-            color: #02223C;
-            margin-bottom: 5px;
-        }
-        
-        .value-text p {
-            margin: 0;
-            color: #666;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        
-        .value-tagline {
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            font-size: 20px;
-        }
-        
-        /* Pricing Styles */
-        .pricing-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-        }
-        
-        .pricing-tier {
-            background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            padding: 30px;
-            text-align: center;
-            transition: all 0.3s;
-            position: relative;
-        }
-        
-        .pricing-tier:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-        }
-        
-        .tier-basic:hover {
-            border-color: #89BEF4;
-        }
-        
-        .tier-department {
-            border-color: #D776C2;
-            border-width: 3px;
-        }
-        
-        .tier-department:hover {
-            border-color: #c565b1;
-        }
-        
-        .tier-enterprise:hover {
-            border-color: #116753;
-        }
-        
-        .tier-badge {
-            background: linear-gradient(135deg, #D776C2 0%, #89BEF4 100%);
-            color: white;
-            padding: 6px 15px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            position: absolute;
-            top: -12px;
-            left: 50%;
-            transform: translateX(-50%);
-            white-space: nowrap;
-        }
-        
-        .tier-name {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            font-size: 22px;
-            color: #02223C;
-            margin-bottom: 15px;
-        }
-        
-        .tier-price {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 700;
-            font-size: 48px;
-            color: #116753;
-            margin-bottom: 20px;
-        }
-        
-        .tier-price span {
-            font-size: 18px;
-            font-weight: 500;
-            color: #666;
-        }
-        
-        .tier-description {
-            color: #666;
-            font-size: 15px;
-            line-height: 1.6;
-            margin-bottom: 20px;
-            min-height: 60px;
-        }
-        
-        .tier-example {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 14px;
-            color: #333;
-            font-style: italic;
-        }
-        
-        /* Reports Section */
-        .reports-section {
-            margin-top: 40px;
-            padding-top: 40px;
-            border-top: 2px solid #89BEF4;
-        }
-        
-        .reports-section h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 20px;
-        }
-        
-        .cost-stats {
-            background: linear-gradient(135deg, #E8F0CA 0%, #FED46B 100%);
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #02223C;
-            border: 2px solid #116753;
-        }
-        
-        .cost-stats span {
-            margin: 0 10px;
-        }
-        
-        #reportSearch {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #89BEF4;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-        
-        #reportSearch:focus {
-            outline: none;
-            border-color: #D776C2;
-            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
-        }
-        
-        #reportSearch::placeholder {
-            color: #999;
-        }
-        
-        .report-item {
-            border: 1px solid #89BEF4;
-            border-radius: 8px;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            transition: border-color 0.2s;
-        }
-        
-        .report-item:hover {
-            border-color: #D776C2;
-        }
-        
-        .report-info {
-            flex: 1;
-        }
-        
-        .report-info h4 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 500;
-            margin-bottom: 5px;
-            color: #02223C;
-        }
-        
-        .report-info small {
-            color: #666;
-        }
-        
-        .btn-view {
-            background: #89BEF4;
-            color: #02223C;
-            padding: 8px 16px;
-            font-size: 14px;
-        }
-        
-        .btn-view:hover {
-            background: #78ade3;
-            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
-        }
-        
-        .btn-download {
-            background: #116753;
-            padding: 8px 16px;
-            font-size: 14px;
-        }
-        
-        .btn-download:hover {
-            background: #0d4f3f;
-            box-shadow: 0 5px 15px rgba(17, 103, 83, 0.4);
-        }
-        
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(2, 34, 60, 0.6);
-        }
-        
-        .modal-content {
-            background-color: white;
-            margin: 10% auto;
-            padding: 30px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 20px 60px rgba(2, 34, 60, 0.4);
-            border: 2px solid #89BEF4;
-        }
-        
-        .modal-header {
-            margin-bottom: 20px;
-        }
-        
-        .modal-header h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 10px;
-        }
-        
-        .modal-header p {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .modal-body textarea {
-            width: 100%;
-            min-height: 120px;
-            padding: 10px;
-            border: 1px solid #89BEF4;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: vertical;
-        }
-        
-        .modal-body textarea:focus {
-            outline: none;
-            border-color: #D776C2;
-            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
-        }
-        
-        .modal-footer {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-        
-        .btn-secondary {
-            background: #89BEF4;
-            color: #02223C;
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        .btn-secondary:hover {
-            background: #78ade3;
-            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
-        }
-        
-        /* Report Preview Styles */
-        .report-preview {
-            margin-top: 15px;
-            border: 2px solid #89BEF4;
-            border-radius: 8px;
-            background: #f8f9fa;
-            overflow: hidden;
-        }
-        
-        .preview-content {
-            padding: 20px;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .preview-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            color: white;
-        }
-        
-        .preview-header h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin: 0;
-        }
-        
-        .btn-close {
-            background: transparent;
-            border: 2px solid white;
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 18px;
-            line-height: 1;
-            transition: all 0.2s;
-        }
-        
-        .btn-close:hover {
-            background: white;
-            color: #02223C;
-        }
-        
-        .preview-section {
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        .preview-section:last-child {
-            border-bottom: none;
-        }
-        
-        .preview-section h4 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 12px;
-            font-size: 16px;
-        }
-        
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        
-        .info-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #89BEF4;
-        }
-        
-        .info-label {
-            display: block;
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .info-value {
-            display: block;
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            font-size: 18px;
-            color: #02223C;
-        }
-        
-        .similar-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-        }
-        
-        .similar-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        
-        .similar-card strong {
-            color: #02223C;
-            font-size: 16px;
-        }
-        
-        .similar-card span {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .analysis-content {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            line-height: 1.8;
-            color: #333;
-        }
-        
-        .analysis-content p {
-            margin-bottom: 15px;
-        }
-        
-        .analysis-content strong {
-            color: #02223C;
-        }
-        
-        .analysis-header {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #116753;
-            font-size: 18px;
-            margin: 25px 0 15px 0;
-        }
-        
-        .analysis-header:first-child {
-            margin-top: 0;
-        }
-        
-        .source-link {
-            color: #89BEF4;
-            text-decoration: none;
-            font-size: 13px;
-            margin-left: 5px;
-        }
-        
-        .source-link:hover {
-            color: #116753;
-            text-decoration: underline;
-        }
-        
-        .preview-loading {
-            padding: 40px;
-            text-align: center;
-            color: #666;
-        }
-        
-        .preview-error {
-            padding: 20px;
-            background: #fee2e2;
-            color: #991b1b;
-            border-radius: 6px;
-            margin: 10px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>📊 District Report Generator</h1>
-            <p>Search for school districts and generate comprehensive recruitment reports</p>
-        </header>
-        
-        <div class="content">
-            <!-- Search Section - At Top -->
-            <div class="search-section">
-                <h2>🔍 Search & Select District</h2>
-                
-                <div class="filters">
-                    <div class="filter-group">
-                        <label>District Name</label>
-                        <input type="text" id="searchText" placeholder="Search by name...">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>State</label>
-                        <select id="stateFilter">
-                            <option value="">All States</option>
-                            {% for state in states %}
-                            <option value="{{ state }}">{{ state }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>County</label>
-                        <input type="text" id="countyFilter" placeholder="Enter county...">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Min Enrollment</label>
-                        <input type="number" id="minEnrollment" placeholder="0">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Max Enrollment</label>
-                        <input type="number" id="maxEnrollment" placeholder="100000">
-                    </div>
-                </div>
-                
-                <button class="btn" onclick="searchDistricts()">Search Districts</button>
-            </div>
+#!/usr/bin/env python3
+"""
+District Report Generator Web App V2
+Flask application with MongoDB PDF storage, Indeed analysis, and meeting prep
+"""
+
+import os
+import json
+import base64
+from datetime import datetime
+from flask import Flask, render_template, request, jsonify, send_file, Response
+from pymongo import MongoClient
+from anthropic import Anthropic
+from dotenv import load_dotenv
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
+from reportlab.lib.colors import HexColor
+import re
+from io import BytesIO
+
+# Load environment variables
+load_dotenv()
+
+app = Flask(__name__)
+
+class DistrictReportGenerator:
+    def __init__(self, mongodb_uri, anthropic_api_key):
+        """Initialize with MongoDB and Anthropic connections"""
+        self.mongo_client = MongoClient(mongodb_uri)
+        self.db = self.mongo_client['applitrack-job-scraper']
+        self.anthropic = Anthropic(api_key=anthropic_api_key)
+        
+    def search_districts(self, search_text=None, state=None, county=None, min_enrollment=None, max_enrollment=None):
+        """Search districts with filters"""
+        query = {}
+        
+        if search_text:
+            query["name"] = {"$regex": search_text, "$options": "i"}
+        
+        if state:
+            query["state"] = state
             
-            <!-- Message Area -->
-            <div id="messageArea"></div>
+        if county:
+            query["county"] = {"$regex": county, "$options": "i"}
             
-            <!-- Results Section -->
-            <div class="results" id="resultsSection" style="display:none;">
-                <h2>Search Results - Choose an Action</h2>
-                <div class="district-list" id="districtList"></div>
-            </div>
+        if min_enrollment is not None or max_enrollment is not None:
+            query["totalEnrollment"] = {}
+            if min_enrollment is not None:
+                query["totalEnrollment"]["$gte"] = min_enrollment
+            if max_enrollment is not None:
+                query["totalEnrollment"]["$lte"] = max_enrollment
+        
+        districts = list(self.db.districts.find(query).limit(100))
+        
+        # Convert ObjectId to string for JSON serialization
+        for district in districts:
+            district['_id'] = str(district['_id'])
             
-            <!-- Demo Preparation Section - Hidden Until Triggered -->
-            <div class="demo-section" id="demoSection">
-                <div class="demo-header">
-                    <h2 id="demoDistrictName">🎯 Demo Preparation</h2>
-                    <button class="btn-toggle" onclick="hideDemo()">Hide</button>
-                </div>
-                
-                <div class="demo-content" id="demoContent">
-                    <!-- Part 1: Discovery Questions -->
-                    <div class="demo-card">
-                        <div class="demo-card-header">
-                            <span class="demo-number">1</span>
-                            <h3>Discovery Questions</h3>
-                        </div>
-                        <div class="demo-card-body" id="discoveryQuestions">
-                            <!-- Will be populated by JavaScript -->
-                        </div>
-                    </div>
-                    
-                    <!-- Part 2: Our Value Proposition -->
-                    <div class="demo-card">
-                        <div class="demo-card-header">
-                            <span class="demo-number">2</span>
-                            <h3>Our Value Proposition</h3>
-                        </div>
-                        <div class="demo-card-body">
-                            <div class="value-prop-intro">
-                                <p class="intro-question"><strong>"How does this sound to you?"</strong></p>
-                            </div>
-                            
-                            <div class="value-prop-content">
-                                <p class="value-statement">
-                                    We help school districts <strong>broaden their candidate base</strong> by ensuring 
-                                    job postings are visible and the application process is friction-free.
-                                </p>
-                                
-                                <div class="value-points">
-                                    <div class="value-point">
-                                        <div class="value-icon">✓</div>
-                                        <div class="value-text">
-                                            <strong>Assess & Prescreen</strong>
-                                            <p>We evaluate candidates based on your specific qualifications</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="value-point">
-                                        <div class="value-icon">✓</div>
-                                        <div class="value-text">
-                                            <strong>Streamline Scheduling</strong>
-                                            <p>Coordinate final interviews between you and qualified candidates</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="value-point">
-                                        <div class="value-icon">✓</div>
-                                        <div class="value-text">
-                                            <strong>Navigate Onboarding</strong>
-                                            <p>Support both you and candidates through the entire process</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="value-tagline">
-                                    <strong>We don't replace you. We enhance you.</strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Part 3: Pricing Structure -->
-                    <div class="demo-card">
-                        <div class="demo-card-header">
-                            <span class="demo-number">3</span>
-                            <h3>Pricing Structure</h3>
-                        </div>
-                        <div class="demo-card-body">
-                            <div class="pricing-grid">
-                                <div class="pricing-tier tier-basic">
-                                    <div class="tier-name">Single Role</div>
-                                    <div class="tier-price">$500<span>/month</span></div>
-                                    <div class="tier-description">
-                                        Recruiting for a single role type with one primary interviewer
-                                    </div>
-                                    <div class="tier-example">
-                                        Example: SPED Teacher
-                                    </div>
-                                </div>
-                                
-                                <div class="pricing-tier tier-department">
-                                    <div class="tier-badge">Most Popular</div>
-                                    <div class="tier-name">Department-Wide</div>
-                                    <div class="tier-price">$1,500<span>/month</span></div>
-                                    <div class="tier-description">
-                                        Multiple role types within one department with multiple interviewers
-                                    </div>
-                                    <div class="tier-example">
-                                        Example: SPED Teacher + SPED Paraprofessional
-                                    </div>
-                                </div>
-                                
-                                <div class="pricing-tier tier-enterprise">
-                                    <div class="tier-name">Organization-Wide</div>
-                                    <div class="tier-price">$3,000<span>/month</span></div>
-                                    <div class="tier-description">
-                                        Full recruiting support across multiple departments and role types
-                                    </div>
-                                    <div class="tier-example">
-                                        Example: SPED, Custodial, Nutrition Services, etc.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Reports Section -->
-            <div class="reports-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">📁 Previous Reports</h2>
-                    <div id="costStats" class="cost-stats"></div>
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <input type="text" id="reportSearch" placeholder="🔍 Search reports by district name..." onkeyup="filterReports()">
-                </div>
-                <div id="reportsList"></div>
-            </div>
-        </div>
-    </div>
+        return districts
     
-    <!-- Contact Names Modal -->
-    <div id="contactModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Meeting Preparation (Optional)</h3>
-                <p>Enter names of people you'll be meeting with for background research:</p>
-            </div>
-            <div class="modal-body">
-                <textarea id="contactNames" placeholder="e.g., John Smith (Superintendent), Jane Doe (HR Director)&#10;&#10;Leave blank to skip"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="skipContacts()">Skip</button>
-                <button class="btn btn-generate" onclick="confirmGenerate()">Generate Report</button>
-            </div>
-        </div>
-    </div>
+    def get_all_states(self):
+        """Get list of all states in database"""
+        return sorted(self.db.districts.distinct("state"))
     
-    <script>
-        let currentDistrict = null;
-        let allReports = [];
-        let currentDistrictData = null;
+    def get_district_basics(self, district_name):
+        """Retrieve basic district info from MongoDB districts collection"""
+        district = self.db.districts.find_one(
+            {"name": {"$regex": f"^{re.escape(district_name)}$", "$options": "i"}}
+        )
         
-        // Load previous reports on page load
-        window.onload = function() {
-            loadReports();
-            loadCostStats();
-        };
+        if not district:
+            return None
         
-        function showMessage(message, type = 'success') {
-            const messageArea = document.getElementById('messageArea');
-            messageArea.innerHTML = `<div class="message ${type}">${message}</div>`;
-            setTimeout(() => {
-                messageArea.innerHTML = '';
-            }, 5000);
+        # Get district ID for aggregating school data
+        district_id = district.get('_id')
+        
+        # Aggregate demographics from schools
+        demographics = self.calculate_district_demographics(district_id)
+        
+        return {
+            "name": district.get("name", "Unknown"),
+            "leaId": district.get("leaId", ""),
+            "enrollment": district.get("totalEnrollment", 0),
+            "num_schools": district.get("totalSchools", 0),
+            "state": district.get("state", ""),
+            "county": district.get("county", ""),
+            "total_jobs": district.get("totalJobs", 0),
+            "is_target_client": district.get("isTargetClient", False),
+            "is_radar_client": district.get("isRadarClient", False),
+            "coordinates": district.get("coordinates", {}),
+            "demographics": demographics
         }
+    
+    def calculate_district_demographics(self, district_id):
+        """Aggregate demographic data from schools to district level"""
+        schools = list(self.db.schools.find({"districtId": district_id}))
         
-        async function searchDistricts() {
-            const searchText = document.getElementById('searchText').value;
-            const state = document.getElementById('stateFilter').value;
-            const county = document.getElementById('countyFilter').value;
-            const minEnrollment = document.getElementById('minEnrollment').value;
-            const maxEnrollment = document.getElementById('maxEnrollment').value;
+        if not schools:
+            return {
+                "free_reduced_lunch_pct": None,
+                "white_pct": None,
+                "minority_pct": None,
+                "total_frl": 0,
+                "total_enrollment": 0
+            }
+        
+        total_frl = 0
+        total_enrollment = 0
+        total_white = 0
+        total_minority = 0
+        
+        for school in schools:
+            # Free/Reduced Lunch
+            frl = school.get("freeReducedLunch", {})
+            frl_total = frl.get("total", 0)
+            if frl_total > 0:  # Only count if valid data
+                total_frl += frl_total
             
-            const resultsSection = document.getElementById('resultsSection');
-            const districtList = document.getElementById('districtList');
+            # Enrollment
+            enrollment = school.get("enrollment", {})
+            school_total = enrollment.get("total", 0)
+            if school_total > 0:
+                total_enrollment += school_total
             
-            // Show loading
-            resultsSection.style.display = 'block';
-            districtList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching districts...</p></div>';
+            # Demographics
+            demographics = school.get("demographics", {})
+            white = demographics.get("white", 0)
+            total_white += white
             
-            try {
-                const response = await fetch('/api/search', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        search_text: searchText || null,
-                        state: state || null,
-                        county: county || null,
-                        min_enrollment: minEnrollment ? parseInt(minEnrollment) : null,
-                        max_enrollment: maxEnrollment ? parseInt(maxEnrollment) : null
-                    })
-                });
-                
-                const districts = await response.json();
-                
-                if (districts.length === 0) {
-                    districtList.innerHTML = '<p class="loading">No districts found matching your criteria.</p>';
-                    return;
+            # Minority = all non-white
+            minority = (
+                demographics.get("americanIndian", 0) +
+                demographics.get("asian", 0) +
+                demographics.get("black", 0) +
+                demographics.get("hispanic", 0) +
+                demographics.get("pacificIslander", 0) +
+                demographics.get("twoOrMore", 0)
+            )
+            total_minority += minority
+        
+        # Calculate percentages
+        frl_pct = (total_frl / total_enrollment * 100) if total_enrollment > 0 else None
+        total_demographic = total_white + total_minority
+        white_pct = (total_white / total_demographic * 100) if total_demographic > 0 else None
+        minority_pct = (total_minority / total_demographic * 100) if total_demographic > 0 else None
+        
+        return {
+            "free_reduced_lunch_pct": round(frl_pct, 1) if frl_pct else None,
+            "white_pct": round(white_pct, 1) if white_pct else None,
+            "minority_pct": round(minority_pct, 1) if minority_pct else None,
+            "total_frl": total_frl,
+            "total_enrollment": total_enrollment
+        }
+    
+    def find_similar_districts(self, district_data, limit=3):
+        """Find similar districts based on enrollment and location"""
+        if not district_data:
+            return []
+        
+        enrollment = district_data.get("enrollment", 0)
+        state = district_data.get("state", "")
+        county = district_data.get("county", "")
+        
+        similar = list(self.db.districts.find({
+            "state": state,
+            "county": county,
+            "name": {"$ne": district_data["name"]},
+            "totalEnrollment": {
+                "$gte": enrollment * 0.5,
+                "$lte": enrollment * 1.5
+            }
+        }).limit(limit))
+        
+        if len(similar) < limit:
+            additional = self.db.districts.find({
+                "state": state,
+                "county": {"$ne": county},
+                "name": {"$ne": district_data["name"]},
+                "totalEnrollment": {
+                    "$gte": enrollment * 0.6,
+                    "$lte": enrollment * 1.4
                 }
-                
-                districtList.innerHTML = districts.map(district => {
-                    const demographics = district.demographics || {};
-                    const frlText = demographics.free_reduced_lunch_pct ? `${demographics.free_reduced_lunch_pct}%` : 'N/A';
-                    const minorityText = demographics.minority_pct ? `${demographics.minority_pct}%` : 'N/A';
-                    
-                    return `
-                    <div class="district-card">
-                        <div class="district-info">
-                            <h3>${district.name}</h3>
-                            <p><strong>Location:</strong> ${district.county || 'N/A'}, ${district.state}</p>
-                            <p><strong>Enrollment:</strong> ${(district.totalEnrollment || 0).toLocaleString()} | <strong>Schools:</strong> ${district.totalSchools || 0} | <strong>Jobs:</strong> ${district.totalJobs || 0}</p>
-                            <p><strong>FRL:</strong> ${frlText} | <strong>Minority:</strong> ${minorityText}</p>
-                        </div>
-                        <div class="district-actions">
-                            <button class="btn btn-demo" onclick='showDemoPrep(${JSON.stringify(district)})'>
-                                📋 Demo Prep
-                            </button>
-                            <button class="btn btn-generate" onclick="openContactModal('${district.name.replace(/'/g, "\\'")}')">
-                                📄 Full Report
-                            </button>
-                        </div>
-                    </div>
-                `}).join('');
-                
-            } catch (error) {
-                districtList.innerHTML = '<p class="loading" style="color: red;">Error searching districts. Please try again.</p>';
-                console.error('Search error:', error);
+            }).limit(limit - len(similar))
+            similar.extend(list(additional))
+        
+        return [
+            {
+                "name": d.get("name"),
+                "enrollment": d.get("totalEnrollment"),
+                "num_schools": d.get("totalSchools"),
+                "county": d.get("county"),
+                "total_jobs": d.get("totalJobs", 0),
             }
+            for d in similar
+        ]
+    
+    def scrape_job_website_with_indeed(self, district_name, state, similar_districts):
+        """Enhanced job scraping with Indeed analysis and financial health check"""
+        prompt = f"""Search the web to analyze job postings and financial health for {district_name} in {state}.
+
+PART 1 - District Career Page:
+1. Find their official careers/employment page URL
+2. Count open positions
+3. List types of roles (teachers, admin, support staff, etc.)
+4. Note urgent hiring needs or hard-to-fill positions
+
+PART 2 - Indeed Analysis:
+Search Indeed for "{district_name} {state}" jobs and provide:
+1. How many listings are on Indeed?
+2. Do any have "Easy Apply" enabled? (this is important - note specifically)
+3. What's the average posting age (how recent are they)?
+
+PART 3 - Competitive Analysis:
+Compare {district_name} to these similar districts on Indeed:
+{json.dumps([d['name'] for d in similar_districts], indent=2)}
+
+For each district, check Indeed and note:
+- Number of open postings
+- Use of "Easy Apply"
+- Competitiveness score (1-10, where 10 = most competitive/aggressive recruiting)
+
+Then provide an overall competitiveness score for {district_name} vs. similar districts.
+
+PART 4 - Financial Health Assessment:
+Research {district_name}'s financial situation:
+1. Search for recent budget reports, financial statements, or audit reports
+2. Look for news about budget deficits, surpluses, or financial challenges
+3. Check for mentions of bond measures or funding initiatives
+4. Find student-per-teacher ratios or per-pupil spending if available
+5. Provide a Financial Health Score (1-10, where 10 = excellent financial health)
+   - Consider: recent budget news, stability, per-pupil spending trends
+   - Include brief reasoning for the score
+
+Format with clear sections and include relevant URLs."""
+
+        try:
+            message = self.anthropic.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=3500,
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search"
+                }],
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            job_info = ""
+            for block in message.content:
+                if block.type == "text":
+                    job_info += block.text + "\n"
+            
+            return job_info.strip()
+        
+        except Exception as e:
+            return f"Unable to retrieve job postings analysis. Error: {str(e)}"
+    
+    def research_contacts(self, contact_names, district_name):
+        """Research contacts for meeting preparation"""
+        if not contact_names or not contact_names.strip():
+            return None
+            
+        prompt = f"""Research these contacts from {district_name} for meeting preparation:
+
+{contact_names}
+
+For each person, please find:
+1. Current role/title at {district_name}
+2. LinkedIn profile (URL if available)
+3. Professional background and experience
+4. Recent news mentions or accomplishments
+5. Are they likely a key decision-maker for hiring/recruitment? (Yes/No and why)
+6. Any public statements about staffing or education priorities
+
+Provide specific URLs and sources for all information found."""
+
+        try:
+            message = self.anthropic.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=3000,
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search"
+                }],
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            contact_info = ""
+            for block in message.content:
+                if block.type == "text":
+                    contact_info += block.text + "\n"
+            
+            return contact_info.strip()
+        
+        except Exception as e:
+            return f"Unable to research contacts. Error: {str(e)}"
+    
+    def analyze_with_claude(self, district_name, district_data, similar_districts, job_scrape_info, contact_research=None):
+        """Enhanced Claude analysis with references"""
+        
+        contact_section = ""
+        if contact_research:
+            contact_section = f"""
+MEETING CONTACTS RESEARCH:
+{contact_research}
+"""
+        
+        demographics = district_data.get('demographics', {})
+        frl_pct = demographics.get('free_reduced_lunch_pct', 'N/A')
+        minority_pct = demographics.get('minority_pct', 'N/A')
+        
+        prompt = f"""Create a concise, well-formatted district profile for {district_name}.
+
+BASIC INFORMATION:
+- Enrollment: {district_data['enrollment']:,}
+- Schools: {district_data['num_schools']}
+- Location: {district_data['county']}, {district_data['state']}
+- LEA ID: {district_data['leaId']}
+- Free/Reduced Lunch: {frl_pct}%
+- Minority Population: {minority_pct}%
+
+SIMILAR DISTRICTS:
+{json.dumps(similar_districts, indent=2)}
+
+JOB POSTINGS & FINANCIAL ANALYSIS:
+{job_scrape_info}
+
+{contact_section}
+
+Search for recent school board meeting minutes/agendas from {district_name} focusing on:
+- Staffing challenges or teacher shortages
+- Recruitment initiatives
+- Budget/personnel issues
+- External recruiting partnerships
+
+CRITICAL: For every claim you make, include the source URL in brackets like [Source: https://example.com]
+
+Create sections (use these exact headers):
+1. DISTRICT OVERVIEW (include key demographics and financial health context)
+2. CURRENT HIRING LANDSCAPE
+3. INDEED COMPETITIVENESS ANALYSIS
+4. FINANCIAL HEALTH ASSESSMENT (expand on financial score from research)
+5. SCHOOL BOARD INSIGHTS{"" if not contact_research else ""}
+{"6. MEETING CONTACTS INTEL" if contact_research else ""}
+{"7. SIMILAR DISTRICTS COMPARISON" if contact_research else "6. SIMILAR DISTRICTS COMPARISON"}
+{"8. SALES APPROACH" if contact_research else "7. SALES APPROACH"}
+
+In SALES APPROACH, consider:
+- How FRL% and demographics affect recruiting challenges
+- How financial health impacts their ability to hire/retain
+- Budget constraints or opportunities
+
+Keep each section concise (3-4 sentences max). Focus on actionable insights. Include source URLs."""
+
+        message = self.anthropic.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=4000,
+            tools=[{
+                "type": "web_search_20250305",
+                "name": "web_search"
+            }],
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        
+        analysis = ""
+        for block in message.content:
+            if block.type == "text":
+                analysis += block.text + "\n"
+        
+        return analysis.strip()
+    
+    def generate_report(self, district_name, contact_names=None):
+        """Main method to generate complete district report"""
+        district_data = self.get_district_basics(district_name)
+        
+        if not district_data:
+            return None
+        
+        similar_districts = self.find_similar_districts(district_data)
+        
+        # Track API calls for cost estimation
+        api_calls = []
+        
+        # Enhanced job scraping with Indeed analysis
+        try:
+            print(f"Starting job scraping for {district_name}")
+            job_scrape_info = self.scrape_job_website_with_indeed(
+                district_name, 
+                district_data['state'],
+                similar_districts
+            )
+            api_calls.append({"type": "job_scraping", "tokens": 3500})
+            print("Job scraping complete")
+        except Exception as e:
+            print(f"Job scraping error: {str(e)}")
+            job_scrape_info = f"Unable to retrieve job information. Error: {str(e)}"
+        
+        # Research contacts if provided
+        contact_research = None
+        if contact_names:
+            try:
+                print(f"Starting contact research")
+                contact_research = self.research_contacts(contact_names, district_name)
+                api_calls.append({"type": "contact_research", "tokens": 3000})
+                print("Contact research complete")
+            except Exception as e:
+                print(f"Contact research error: {str(e)}")
+                contact_research = f"Unable to research contacts. Error: {str(e)}"
+        
+        # Generate analysis
+        try:
+            print(f"Starting Claude analysis")
+            claude_analysis = self.analyze_with_claude(
+                district_name, 
+                district_data, 
+                similar_districts,
+                job_scrape_info,
+                contact_research
+            )
+            api_calls.append({"type": "analysis", "tokens": 4000})
+            print("Claude analysis complete")
+        except Exception as e:
+            print(f"Claude analysis error: {str(e)}")
+            claude_analysis = f"Unable to generate full analysis. Error: {str(e)}"
+        
+        # Calculate estimated cost
+        total_tokens = sum(call["tokens"] for call in api_calls)
+        input_tokens = int(total_tokens * 0.6)
+        output_tokens = int(total_tokens * 0.4)
+        estimated_cost = (input_tokens / 1_000_000 * 3) + (output_tokens / 1_000_000 * 15)
+        
+        report = {
+            "district_name": district_name,
+            "generated_at": datetime.now().isoformat(),
+            "basic_data": district_data,
+            "similar_districts": similar_districts,
+            "job_scrape_info": job_scrape_info,
+            "contact_research": contact_research,
+            "claude_analysis": claude_analysis,
+            "api_calls": api_calls,
+            "estimated_cost": round(estimated_cost, 3)
         }
         
-        function showDemoPrep(districtData) {
-            currentDistrictData = districtData;
-            
-            // Update header with district name
-            document.getElementById('demoDistrictName').innerText = `🎯 Demo Preparation for ${districtData.name}`;
-            
-            // Populate discovery questions
-            const demographics = districtData.demographics || {};
-            const discoveryDiv = document.getElementById('discoveryQuestions');
-            
-            let questionsHTML = `
-                <div class="question-group">
-                    <h4><span class="question-icon">🎯</span> Opening Questions</h4>
-                    <div class="question-item">
-                        <p class="question-text"><strong>"What is the goal of this call? Why did you decide to join today?"</strong></p>
-                    </div>
-                    <div class="question-item">
-                        <p class="question-text">"How is recruiting and retention going for you right now?"</p>
-                    </div>
-                </div>
-                
-                <div class="question-group">
-                    <h4><span class="question-icon">📊</span> Data-Driven Questions</h4>
-                    <div class="question-item">
-                        <p class="question-text">"Are you getting enough applicants for your open positions?"</p>
-                    </div>
-                    <div class="question-item">
-                        <p class="question-text">"Are you happy with your role vacancy fill rate and timing?"</p>
-                    </div>
-                </div>
-                
-                <div class="data-insight">
-                    <h5>📈 Use This Data in Your Conversation:</h5>
-                    <div class="insight-stat">
-                        <span class="stat-label">Current Open Positions:</span>
-                        <span class="stat-value">${districtData.totalJobs || 0}</span>
-                    </div>
-                    <div class="insight-stat">
-                        <span class="stat-label">District Size:</span>
-                        <span class="stat-value">${(districtData.totalEnrollment || 0).toLocaleString()} students</span>
-                    </div>
-                    <div class="insight-stat">
-                        <span class="stat-label">Free/Reduced Lunch:</span>
-                        <span class="stat-value">${demographics.free_reduced_lunch_pct || 'N/A'}%</span>
-                    </div>
-                    <div class="insight-stat">
-                        <span class="stat-label">Minority Population:</span>
-                        <span class="stat-value">${demographics.minority_pct || 'N/A'}%</span>
-                    </div>
-                </div>
-                
-                <div class="question-group" style="margin-top: 25px;">
-                    <h4><span class="question-icon">🎓</span> Department-Specific Questions</h4>
-                    <div class="question-item">
-                        <p class="question-text">"I noticed you have ${districtData.totalJobs || 0} open positions. Which departments are proving most challenging to fill?"</p>
-                    </div>
-                    <div class="question-item">
-                        <p class="question-text">"How long have your current vacancies been open on average?"</p>
-                    </div>
-                    <div class="question-item">
-                        <p class="question-text">"What's your biggest pain point in the recruiting process right now?"</p>
-                    </div>
-                </div>
-            `;
-            
-            discoveryDiv.innerHTML = questionsHTML;
-            
-            // Show demo section
-            document.getElementById('demoSection').style.display = 'block';
-            
-            // Scroll to demo section
-            document.getElementById('demoSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        return report
+    
+    def generate_demo_script(self, district_name):
+        """
+        Generate demo script using MongoDB data + ONE targeted web search for board minutes
+        Handles cases where job data might not be available
         
-        function hideDemo() {
-            document.getElementById('demoSection').style.display = 'none';
-        }
+        Perfect for: Sales calls, demo prep with recent board context
+        Cost: ~$0.006, Time: ~15 seconds
+        """
         
-        function openContactModal(districtName) {
-            currentDistrict = districtName;
-            document.getElementById('contactNames').value = '';
-            document.getElementById('contactModal').style.display = 'block';
-        }
+        # Get all data from MongoDB
+        district_data = self.get_district_basics(district_name)
+        if not district_data:
+            return None
         
-        function skipContacts() {
-            document.getElementById('contactModal').style.display = 'none';
-            generateReport(currentDistrict, null);
-        }
+        similar_districts = self.find_similar_districts(district_data)
+        demographics = district_data.get('demographics', {})
         
-        function confirmGenerate() {
-            const contactNames = document.getElementById('contactNames').value.trim();
-            document.getElementById('contactModal').style.display = 'none';
-            generateReport(currentDistrict, contactNames || null);
-        }
+        # Get schools breakdown for more context
+        from bson import ObjectId
+        district_id = ObjectId(district_data.get('_id')) if isinstance(district_data.get('_id'), str) else district_data.get('_id')
+        schools = list(self.db.schools.find({"districtId": district_id}))
         
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('contactModal');
-            if (event.target == modal) {
-                modal.style.display = 'none';
+        # Analyze school types
+        elementary = [s for s in schools if 'elementary' in s.get('name', '').lower()]
+        middle = [s for s in schools if 'middle' in s.get('name', '').lower()]
+        high = [s for s in schools if 'high' in s.get('name', '').lower()]
+        
+        # Handle missing job data gracefully
+        jobs_data = district_data.get('total_jobs', 0)
+        jobs_info = f"• Current Job Postings: {jobs_data}" if jobs_data else "• Job posting data not available (district may not use Applitrack)"
+        
+        # Build prompt
+        prompt = f"""You are a sales strategist preparing for a call with {district_name}. Using the data provided AND a targeted web search, create a comprehensive demo preparation script.
+
+═══════════════════════════════════════════════════════════════
+DISTRICT PROFILE: {district_name}
+═══════════════════════════════════════════════════════════════
+
+BASICS:
+• Location: {district_data['county']} County, {district_data['state']}
+• Total Enrollment: {district_data['enrollment']:,} students
+• Number of Schools: {district_data['num_schools']}
+  - Elementary: {len(elementary)} schools
+  - Middle: {len(middle)} schools  
+  - High: {len(high)} schools
+{jobs_info}
+
+DEMOGRAPHICS:
+• Free/Reduced Lunch: {demographics.get('free_reduced_lunch_pct', 'N/A')}%
+• White Students: {demographics.get('white_pct', 'N/A')}%
+• Minority Students: {demographics.get('minority_pct', 'N/A')}%
+
+CLIENT STATUS:
+• Target Client: {'Yes' if district_data.get('is_target_client') else 'No'}
+• Radar Client: {'Yes' if district_data.get('is_radar_client') else 'No'}
+
+SIMILAR DISTRICTS:
+{chr(10).join([f"• {d['name']}: {d['enrollment']:,} students, {d['num_schools']} schools{', ' + str(d.get('total_jobs', 0)) + ' jobs' if d.get('total_jobs') else ''}" for d in similar_districts[:5]])}
+
+═══════════════════════════════════════════════════════════════
+WEB RESEARCH TASK:
+═══════════════════════════════════════════════════════════════
+
+Search for: "{district_name} {district_data['state']} school board minutes staffing OR recruiting OR workforce OR teacher shortage OR hiring"
+
+Find recent (2024-2025):
+1. Board meeting discussions about staffing/recruiting challenges
+2. News stories about workforce issues or teacher shortages
+3. Mentions of recruitment strategies, hiring events, or external partners
+4. Budget discussions related to personnel
+
+Include specific quotes, dates, and source URLs.
+
+═══════════════════════════════════════════════════════════════
+CREATE DEMO SCRIPT WITH THESE SECTIONS:
+═══════════════════════════════════════════════════════════════
+
+1. OPENING QUESTIONS (5-7 questions)
+   Reference their data AND recent board/news findings.
+   Example: "I saw in your October board minutes you discussed SPED staffing. With {district_data['enrollment']:,} students, is that still your biggest challenge?"
+
+2. RECENT CONTEXT (3-4 insights from web search)
+   What did you learn from board minutes and news?
+   - Recent staffing challenges mentioned
+   - Recruitment initiatives they're trying  
+   - Budget constraints affecting hiring
+   - External partnerships mentioned
+   Include dates and source URLs.
+
+3. KEY TALKING POINTS (4-5 points)
+   What to emphasize given their situation + recent context.
+   Connect our solution to problems mentioned in search.
+
+4. PAIN POINTS TO PROBE (3-4 challenges)
+   Based on data AND board/news mentions.
+   Reference specific issues from search results.
+
+5. COMPETITIVE CONTEXT (2-3 insights)
+   Compare to similar districts using the data.
+
+6. VALUE PROPOSITION ANGLE (1 paragraph)
+   Given their specific situation AND recent challenges.
+   Connect to problems mentioned in board minutes/news.
+
+7. OBJECTION HANDLING (2-3 objections)
+   Based on profile and any budget/contract mentions in search.
+
+8. CLOSING RECOMMENDATIONS (2-3 strategies)
+
+═══════════════════════════════════════════════════════════════
+FORMATTING:
+═══════════════════════════════════════════════════════════════
+
+• Use specific numbers from data
+• Reference specific board meetings/news with dates
+• Include source URLs for all findings
+• Questions should reference recent events
+• Bold key numbers and developments
+• Keep concise but complete
+
+Begin:"""
+
+        try:
+            print(f"Generating demo script for {district_name} (with board search)")
+            
+            # ONE TARGETED WEB SEARCH - Just board minutes/news
+            import time
+            message = self.anthropic.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=3500,
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_search_results": 3  # CRITICAL: Only 3 results
+                }],
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            script = ""
+            for block in message.content:
+                if block.type == "text":
+                    script += block.text + "\n"
+            
+            print(f"Demo script complete for {district_name}")
+            
+            # Delay to respect rate limits
+            time.sleep(8)  # ~7 scripts/minute with search
+            
+            return {
+                "district_name": district_name,
+                "generated_at": datetime.now().isoformat(),
+                "script_type": "demo_with_board_search",
+                "basic_data": district_data,
+                "similar_districts": similar_districts,
+                "demo_script": script,
+                "estimated_cost": 0.006,
+                "generation_time": "~15 seconds",
+                "has_job_data": bool(jobs_data)
             }
+            
+        except Exception as e:
+            print(f"Error generating demo script: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise
+    
+    def generate_pdf(self, report):
+        """Generate PDF with improved formatting"""
+        if not report:
+            return None
+        
+        # Create PDF in memory
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter,
+                              topMargin=0.75*inch, bottomMargin=0.75*inch)
+        story = []
+        styles = getSampleStyleSheet()
+        
+        # Custom styles with bold headers
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            textColor=HexColor('#1a1a1a'),
+            spaceAfter=20,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=13,
+            textColor=HexColor('#2563eb'),
+            spaceAfter=8,
+            spaceBefore=12,
+            fontName='Helvetica-Bold'
+        )
+        
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=14,
+            spaceAfter=8
+        )
+        
+        # Title
+        story.append(Paragraph(f"{report['district_name']}", title_style))
+        gen_date = datetime.fromisoformat(report['generated_at']).strftime("%B %d, %Y")
+        story.append(Paragraph(f"<i>Generated: {gen_date}</i>", body_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Basic Information
+        story.append(Paragraph("<b>BASIC INFORMATION</b>", heading_style))
+        data = report['basic_data']
+        demographics = data.get('demographics', {})
+        
+        # Format demographics
+        frl_text = f"{demographics.get('free_reduced_lunch_pct', 'N/A')}%" if demographics.get('free_reduced_lunch_pct') else "N/A"
+        white_text = f"{demographics.get('white_pct', 'N/A')}%" if demographics.get('white_pct') else "N/A"
+        minority_text = f"{demographics.get('minority_pct', 'N/A')}%" if demographics.get('minority_pct') else "N/A"
+        
+        basic_info = f"""<b>District Profile:</b> Enrollment: {data['enrollment']:,} | Schools: {data['num_schools']} | Location: {data['county']}, {data['state']}<br/>
+<b>Demographics:</b> Free/Reduced Lunch: {frl_text} | White: {white_text} | Minority: {minority_text}<br/>
+<b>Status:</b> Target Client: {'Yes' if data['is_target_client'] else 'No'} | Radar Client: {'Yes' if data['is_radar_client'] else 'No'}"""
+        story.append(Paragraph(basic_info, body_style))
+        story.append(Spacer(1, 0.15*inch))
+        
+        # Similar Districts (condensed)
+        story.append(Paragraph("<b>SIMILAR DISTRICTS</b>", heading_style))
+        similar_text = " | ".join([
+            f"{d['name']} ({d['enrollment']:,})" 
+            for d in report['similar_districts']
+        ])
+        story.append(Paragraph(similar_text, body_style))
+        story.append(Spacer(1, 0.15*inch))
+        
+        # Parse and format the Claude analysis with bold headers
+        analysis_text = report['claude_analysis']
+        
+        # Split by common section headers and format
+        lines = analysis_text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if not line:
+                story.append(Spacer(1, 0.1*inch))
+                continue
+                
+            # Check if it's a header (all caps or starts with number)
+            if (line.isupper() and len(line) < 50) or re.match(r'^\d+\.', line):
+                story.append(Paragraph(f"<b>{line}</b>", heading_style))
+            else:
+                # Convert markdown links to HTML links
+                line = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', r'<a href="\2" color="blue">\1</a>', line)
+                # Convert [Source: URL] to clickable links
+                line = re.sub(r'\[Source: ([^\]]+)\]', r'<a href="\1" color="blue">[Source]</a>', line)
+                story.append(Paragraph(line, body_style))
+        
+        # Build PDF
+        doc.build(story)
+        
+        pdf_data = buffer.getvalue()
+        buffer.close()
+        
+        return pdf_data
+    
+    def save_report_to_db(self, report, pdf_data):
+        """Save report and PDF to MongoDB"""
+        district_name = report["district_name"].replace(" ", "_")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{district_name}_{timestamp}.pdf"
+        
+        # Store in MongoDB
+        report_doc = {
+            "filename": filename,
+            "district_name": report["district_name"],
+            "generated_at": datetime.now(),
+            "pdf_data": base64.b64encode(pdf_data).decode('utf-8'),
+            "report_json": report
         }
         
-        async function generateReport(districtName, contactNames) {
-            const messageArea = document.getElementById('messageArea');
-            let seconds = 0;
-            
-            // Show initial message with timer
-            const updateTimer = setInterval(() => {
-                seconds++;
-                const minutes = Math.floor(seconds / 60);
-                const secs = seconds % 60;
-                const timeStr = `${minutes}:${secs.toString().padStart(2, '0')}`;
-                messageArea.innerHTML = `<div class="message success">⏳ Generating enhanced report for ${districtName}... (${timeStr} elapsed)</div>`;
-            }, 1000);
-            
-            // Create AbortController with longer timeout
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
-            
-            try {
-                const response = await fetch('/api/generate-report', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        district_name: districtName,
-                        contact_names: contactNames
-                    }),
-                    signal: controller.signal,
-                    keepalive: true
-                });
-                
-                clearTimeout(timeoutId);
-                clearInterval(updateTimer);
-                
-                const result = await response.json();
-                
-                if (result.error) {
-                    showMessage(`❌ Error: ${result.error}`, 'error');
-                    return;
-                }
-                
-                showMessage(`✅ Report generated successfully for ${districtName}! (${Math.floor(seconds / 60)}m ${seconds % 60}s)`, 'success');
-                
-                // Reload reports list and cost stats
-                loadReports();
-                loadCostStats();
-                
-                // Auto-download the PDF
-                window.location.href = `/api/download/${result.pdf_filename}`;
-                
-            } catch (error) {
-                clearTimeout(timeoutId);
-                clearInterval(updateTimer);
-                
-                if (error.name === 'AbortError') {
-                    showMessage(`❌ Request timed out after 5 minutes. The report may still be generating. Check "Previous Reports" in a moment.`, 'error');
-                } else {
-                    showMessage(`❌ Error generating report: ${error.message}. Please try again.`, 'error');
-                }
-                console.error('Generate error:', error);
+        self.db.generated_reports.insert_one(report_doc)
+        
+        return filename
+    
+    def get_all_reports(self):
+        """Retrieve all reports from MongoDB"""
+        reports = list(self.db.generated_reports.find().sort("generated_at", -1))
+        
+        return [
+            {
+                "filename": r["filename"],
+                "district_name": r["district_name"],
+                "created": r["generated_at"].isoformat(),
+                "size": len(base64.b64decode(r["pdf_data"])),
+                "estimated_cost": r["report_json"].get("estimated_cost", 0)
             }
-        }
+            for r in reports
+        ]
+    
+    def get_report_pdf(self, filename):
+        """Retrieve PDF from MongoDB"""
+        report = self.db.generated_reports.find_one({"filename": filename})
         
-        async function loadCostStats() {
-            try {
-                const response = await fetch('/api/cost-stats');
-                const stats = await response.json();
-                
-                const costStatsDiv = document.getElementById('costStats');
-                costStatsDiv.innerHTML = `
-                    💰 Total: $${stats.total_cost.toFixed(2)} 
-                    <span>|</span> 
-                    📊 Reports: ${stats.total_reports} 
-                    <span>|</span> 
-                    📈 Avg: $${stats.avg_cost_per_report.toFixed(3)}/report
-                `;
-            } catch (error) {
-                console.error('Error loading cost stats:', error);
-            }
-        }
+        if not report:
+            return None
         
-        async function loadReports() {
-            const reportsList = document.getElementById('reportsList');
-            reportsList.innerHTML = '<div class="loading"><p>Loading reports...</p></div>';
-            
-            try {
-                const response = await fetch('/api/reports');
-                const reports = await response.json();
-                
-                allReports = reports;
-                
-                if (reports.length === 0) {
-                    reportsList.innerHTML = '<p class="loading">No reports generated yet.</p>';
-                    return;
-                }
-                
-                displayReports(reports);
-                
-            } catch (error) {
-                reportsList.innerHTML = '<p class="loading" style="color: red;">Error loading reports.</p>';
-                console.error('Load reports error:', error);
-            }
-        }
+        return base64.b64decode(report["pdf_data"])
+
+# Initialize generator
+mongodb_uri = os.getenv("MONGODB_URI")
+anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+generator = DistrictReportGenerator(mongodb_uri, anthropic_api_key)
+
+@app.route('/')
+def index():
+    """Main page"""
+    states = generator.get_all_states()
+    return render_template('index.html', states=states)
+
+@app.route('/api/search', methods=['POST'])
+def search():
+    """Search districts API endpoint"""
+    data = request.json
+    
+    districts = generator.search_districts(
+        search_text=data.get('search_text'),
+        state=data.get('state'),
+        county=data.get('county'),
+        min_enrollment=data.get('min_enrollment'),
+        max_enrollment=data.get('max_enrollment')
+    )
+    
+    # Add demographics to each district
+    for district in districts:
+        district_id = district.get('_id')
+        if district_id:
+            from bson import ObjectId
+            demographics = generator.calculate_district_demographics(ObjectId(district_id))
+            district['demographics'] = demographics
+    
+    return jsonify(districts)
+
+@app.route('/api/generate-report', methods=['POST'])
+def generate_report():
+    """Generate report for a district"""
+    data = request.json
+    district_name = data.get('district_name')
+    contact_names = data.get('contact_names')
+    
+    if not district_name:
+        return jsonify({"error": "District name required"}), 400
+    
+    try:
+        print(f"Starting report generation for {district_name}")
+        report = generator.generate_report(district_name, contact_names)
         
-        function filterReports() {
-            const searchTerm = document.getElementById('reportSearch').value.toLowerCase();
-            
-            if (!searchTerm) {
-                displayReports(allReports);
-                return;
-            }
-            
-            const filtered = allReports.filter(report => 
-                report.district_name.toLowerCase().includes(searchTerm)
-            );
-            
-            displayReports(filtered);
-        }
+        if not report:
+            print(f"District not found: {district_name}")
+            return jsonify({"error": "District not found"}), 404
         
-        function displayReports(reports) {
-            const reportsList = document.getElementById('reportsList');
-            
-            if (reports.length === 0) {
-                reportsList.innerHTML = '<p class="loading">No reports match your search.</p>';
-                return;
-            }
-            
-            reportsList.innerHTML = reports.map(report => {
-                const date = new Date(report.created).toLocaleString();
-                const sizeMB = (report.size / 1024 / 1024).toFixed(2);
-                const reportId = report.filename.replace(/[^a-zA-Z0-9]/g, '_');
-                const cost = report.estimated_cost || 0;
-                
-                return `
-                    <div class="report-item">
-                        <div class="report-info">
-                            <h4>${report.district_name}</h4>
-                            <small>Created: ${date} | Size: ${sizeMB} MB | Cost: $${cost.toFixed(3)}</small>
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-view" onclick="toggleReportPreview('${reportId}', '${report.filename}')">
-                                👁️ View
-                            </button>
-                            <button class="btn btn-download" onclick="downloadReport('${report.filename}')">
-                                Download PDF
-                            </button>
-                        </div>
-                    </div>
-                    <div id="preview_${reportId}" class="report-preview" style="display: none;">
-                        <div class="preview-loading">Loading preview...</div>
-                    </div>
-                `;
-            }).join('');
-        }
+        print(f"Report generated, creating PDF...")
+        # Generate PDF
+        pdf_data = generator.generate_pdf(report)
         
-        async function toggleReportPreview(reportId, filename) {
-            const previewDiv = document.getElementById(`preview_${reportId}`);
-            
-            if (previewDiv.style.display === 'block') {
-                previewDiv.style.display = 'none';
-                return;
-            }
-            
-            previewDiv.style.display = 'block';
-            previewDiv.innerHTML = '<div class="preview-loading"><div class="spinner"></div><p>Loading report preview...</p></div>';
-            
-            try {
-                const response = await fetch(`/api/report-preview/${filename}`);
-                const data = await response.json();
-                
-                if (data.error) {
-                    previewDiv.innerHTML = `<div class="preview-error">Error loading preview: ${data.error}</div>`;
-                    return;
-                }
-                
-                const report = data.report_json;
-                const demographics = report.basic_data.demographics || {};
-                
-                let formattedAnalysis = report.claude_analysis
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\n\n/g, '</p><p>')
-                    .replace(/^\d+\.\s+(.+)$/gm, '<h5 class="analysis-header">$1</h5>')
-                    .replace(/\[Source:\s*([^\]]+)\]/g, '<a href="$1" target="_blank" class="source-link">[Source]</a>');
-                
-                let previewHTML = `
-                    <div class="preview-content">
-                        <div class="preview-header">
-                            <h3>${report.district_name}</h3>
-                            <button class="btn-close" onclick="toggleReportPreview('${reportId}', '${filename}')">✕</button>
-                        </div>
-                        
-                        <div class="preview-section">
-                            <h4>📋 Basic Information</h4>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <span class="info-label">Enrollment</span>
-                                    <span class="info-value">${report.basic_data.enrollment.toLocaleString()}</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Schools</span>
-                                    <span class="info-value">${report.basic_data.num_schools}</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Location</span>
-                                    <span class="info-value">${report.basic_data.county}, ${report.basic_data.state}</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Free/Reduced Lunch</span>
-                                    <span class="info-value">${demographics.free_reduced_lunch_pct || 'N/A'}%</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Minority Population</span>
-                                    <span class="info-value">${demographics.minority_pct || 'N/A'}%</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="preview-section">
-                            <h4>🔗 Similar Districts</h4>
-                            <div class="similar-grid">
-                                ${report.similar_districts.map(d => `
-                                    <div class="similar-card">
-                                        <strong>${d.name}</strong>
-                                        <span>${d.county}</span>
-                                        <span>${d.enrollment.toLocaleString()} students</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        
-                        <div class="preview-section">
-                            <h4>💼 Job Postings & Financial Analysis</h4>
-                            <div class="analysis-content">${report.job_scrape_info.replace(/\n/g, '<br>')}</div>
-                        </div>
-                        
-                        ${report.contact_research ? `
-                        <div class="preview-section">
-                            <h4>🤝 Contact Research</h4>
-                            <div class="analysis-content">${report.contact_research.replace(/\n/g, '<br>')}</div>
-                        </div>
-                        ` : ''}
-                        
-                        <div class="preview-section">
-                            <h4>🤖 Comprehensive Analysis</h4>
-                            <div class="analysis-content"><p>${formattedAnalysis}</p></div>
-                        </div>
-                    </div>
-                `;
-                
-                previewDiv.innerHTML = previewHTML;
-                
-            } catch (error) {
-                previewDiv.innerHTML = `<div class="preview-error">Error loading preview: ${error.message}</div>`;
-                console.error('Preview error:', error);
-            }
-        }
+        if not pdf_data:
+            print("PDF generation failed")
+            return jsonify({"error": "PDF generation failed"}), 500
         
-        function downloadReport(filename) {
-            window.location.href = `/api/download/${filename}`;
-        }
+        print(f"Saving to MongoDB...")
+        # Save to MongoDB
+        pdf_filename = generator.save_report_to_db(report, pdf_data)
         
-        // Allow Enter key to trigger search
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputs = document.querySelectorAll('input, select');
-            inputs.forEach(input => {
-                input.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        searchDistricts();
-                    }
-                });
-            });
-        });
-    </script>
-</body>
-</html>
+        print(f"Report complete: {pdf_filename}")
+        
+        return jsonify({
+            "success": True,
+            "pdf_filename": pdf_filename,
+            "report": report  # Include full report for demo section
+        })
+    
+    except Exception as e:
+        print(f"Error generating report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route('/api/reports')
+def list_reports():
+    """List all generated reports from MongoDB"""
+    try:
+        reports = generator.get_all_reports()
+        return jsonify(reports)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/generate-demo-script', methods=['POST'])
+def generate_demo_script_endpoint():
+    """Generate demo script using MongoDB data + board minutes search"""
+    data = request.json
+    district_name = data.get('district_name')
+    
+    if not district_name:
+        return jsonify({"error": "District name required"}), 400
+    
+    try:
+        print(f"Generating demo script for {district_name}")
+        result = generator.generate_demo_script(district_name)
+        
+        if not result:
+            return jsonify({"error": "District not found"}), 404
+        
+        print(f"Demo script complete for {district_name}")
+        
+        return jsonify({
+            "success": True,
+            "script": result
+        })
+    
+    except Exception as e:
+        print(f"Error generating demo script: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route('/api/download/<filename>')
+def download_report(filename):
+    """Download a PDF report from MongoDB"""
+    try:
+        pdf_data = generator.get_report_pdf(filename)
+        
+        if not pdf_data:
+            return jsonify({"error": "File not found"}), 404
+        
+        return Response(
+            pdf_data,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'attachment;filename={filename}'}
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/report-preview/<filename>')
+def preview_report(filename):
+    """Get report JSON data for preview"""
+    try:
+        report = generator.db.generated_reports.find_one({"filename": filename})
+        
+        if not report:
+            return jsonify({"error": "Report not found"}), 404
+        
+        # Return the report JSON without the PDF data
+        return jsonify({
+            "filename": report["filename"],
+            "district_name": report["district_name"],
+            "generated_at": report["generated_at"].isoformat(),
+            "report_json": report["report_json"]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cost-stats')
+def cost_stats():
+    """Get total cost statistics"""
+    try:
+        reports = list(generator.db.generated_reports.find())
+        
+        if not reports:
+            return jsonify({
+                "total_reports": 0,
+                "total_cost": 0,
+                "avg_cost_per_report": 0
+            })
+        
+        total_cost = sum(r["report_json"].get("estimated_cost", 0) for r in reports)
+        
+        return jsonify({
+            "total_reports": len(reports),
+            "total_cost": round(total_cost, 2),
+            "avg_cost_per_report": round(total_cost / len(reports), 3)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)

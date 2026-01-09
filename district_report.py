@@ -1,35 +1,85 @@
 #!/usr/bin/env python3
 """
-District Report Generator
-Combines MongoDB data with Claude API to create comprehensive district reports
+District Report Generator Web App V2
+Flask application with MongoDB PDF storage, Indeed analysis, and meeting prep
 """
 
 import os
 import json
+import base64
 from datetime import datetime
+from flask import Flask, render_template, request, jsonify, send_file, Response
 from pymongo import MongoClient
 from anthropic import Anthropic
 from dotenv import load_dotenv
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_LEFT, TA_CENTER
+from reportlab.lib.colors import HexColor
+import re
+from io import BytesIO
 
+# Load environment variables
 load_dotenv()
+
+app = Flask(__name__)
 
 class DistrictReportGenerator:
     def __init__(self, mongodb_uri, anthropic_api_key):
         """Initialize with MongoDB and Anthropic connections"""
         self.mongo_client = MongoClient(mongodb_uri)
-        self.db = self.mongo_client['applitrack-job-scraper']  # Your database name
+        self.db = self.mongo_client['applitrack-job-scraper']
         self.anthropic = Anthropic(api_key=anthropic_api_key)
         
+    def search_districts(self, search_text=None, state=None, county=None, min_enrollment=None, max_enrollment=None):
+        """Search districts with filters"""
+        query = {}
+        
+        if search_text:
+            query["name"] = {"$regex": search_text, "$options": "i"}
+        
+        if state:
+            query["state"] = state
+            
+        if county:
+            query["county"] = {"$regex": county, "$options": "i"}
+            
+        if min_enrollment is not None or max_enrollment is not None:
+            query["totalEnrollment"] = {}
+            if min_enrollment is not None:
+                query["totalEnrollment"]["$gte"] = min_enrollment
+            if max_enrollment is not None:
+                query["totalEnrollment"]["$lte"] = max_enrollment
+        
+        districts = list(self.db.districts.find(query).limit(100))
+        
+        # Convert ObjectId to string for JSON serialization
+        for district in districts:
+            district['_id'] = str(district['_id'])
+            
+        return districts
+    
+    def get_all_states(self):
+        """Get list of all states in database"""
+        return sorted(self.db.districts.distinct("state"))
+    
     def get_district_basics(self, district_name):
         """Retrieve basic district info from MongoDB districts collection"""
-        # Search in the districts collection
         district = self.db.districts.find_one(
-            {"name": {"$regex": district_name, "$options": "i"}}
+            {"name": {"$regex": f"^{re.escape(district_name)}$", "$options": "i"}}
         )
         
         if not district:
             return None
-            
+        
+        # Get district ID for aggregating school data
+        district_id = district.get('_id')
+        
+        # Aggregate demographics from schools
+        demographics = self.calculate_district_demographics(district_id)
+        
         return {
             "name": district.get("name", "Unknown"),
             "leaId": district.get("leaId", ""),
@@ -41,6 +91,68 @@ class DistrictReportGenerator:
             "is_target_client": district.get("isTargetClient", False),
             "is_radar_client": district.get("isRadarClient", False),
             "coordinates": district.get("coordinates", {}),
+            "demographics": demographics
+        }
+    
+    def calculate_district_demographics(self, district_id):
+        """Aggregate demographic data from schools to district level"""
+        schools = list(self.db.schools.find({"districtId": district_id}))
+        
+        if not schools:
+            return {
+                "free_reduced_lunch_pct": None,
+                "white_pct": None,
+                "minority_pct": None,
+                "total_frl": 0,
+                "total_enrollment": 0
+            }
+        
+        total_frl = 0
+        total_enrollment = 0
+        total_white = 0
+        total_minority = 0
+        
+        for school in schools:
+            # Free/Reduced Lunch
+            frl = school.get("freeReducedLunch", {})
+            frl_total = frl.get("total", 0)
+            if frl_total > 0:  # Only count if valid data
+                total_frl += frl_total
+            
+            # Enrollment
+            enrollment = school.get("enrollment", {})
+            school_total = enrollment.get("total", 0)
+            if school_total > 0:
+                total_enrollment += school_total
+            
+            # Demographics
+            demographics = school.get("demographics", {})
+            white = demographics.get("white", 0)
+            total_white += white
+            
+            # Minority = all non-white
+            minority = (
+                demographics.get("americanIndian", 0) +
+                demographics.get("asian", 0) +
+                demographics.get("black", 0) +
+                demographics.get("hispanic", 0) +
+                demographics.get("pacificIslander", 0) +
+                demographics.get("twoOrMore", 0)
+            )
+            total_minority += minority
+        
+        # Calculate percentages
+        frl_pct = (total_frl / total_enrollment * 100) if total_enrollment > 0 else None
+        total_demographic = total_white + total_minority
+        white_pct = (total_white / total_demographic * 100) if total_demographic > 0 else None
+        minority_pct = (total_minority / total_demographic * 100) if total_demographic > 0 else None
+        
+        return {
+            "free_reduced_lunch_pct": round(frl_pct, 1) if frl_pct else None,
+            "white_pct": round(white_pct, 1) if white_pct else None,
+            "minority_pct": round(minority_pct, 1) if minority_pct else None,
+            "total_frl": total_frl,
+            "total_enrollment": total_enrollment
         }
     
     def find_similar_districts(self, district_data, limit=3):
@@ -52,8 +164,6 @@ class DistrictReportGenerator:
         state = district_data.get("state", "")
         county = district_data.get("county", "")
         
-        # Find districts with similar characteristics
-        # Priority 1: Same county
         similar = list(self.db.districts.find({
             "state": state,
             "county": county,
@@ -64,7 +174,6 @@ class DistrictReportGenerator:
             }
         }).limit(limit))
         
-        # If not enough in same county, expand to same state
         if len(similar) < limit:
             additional = self.db.districts.find({
                 "state": state,
@@ -88,24 +197,49 @@ class DistrictReportGenerator:
             for d in similar
         ]
     
-    def scrape_job_website(self, district_name, state):
-        """Use Claude API with web search to find and scrape job postings"""
-        print("🔍 Searching for job postings on district website...")
-        
-        prompt = f"""Search the web to find the careers/jobs page for {district_name} in {state}.
+    def scrape_job_website_with_indeed(self, district_name, state, similar_districts):
+        """Enhanced job scraping with Indeed analysis and financial health check"""
+        prompt = f"""Search the web to analyze job postings and financial health for {district_name} in {state}.
 
-Please:
-1. Find their official careers or employment page URL
-2. Tell me how many open positions they currently have
-3. List the types of roles they're hiring for (teachers, admin, support staff, etc.)
-4. Note if the page mentions any urgent hiring needs or hard-to-fill positions
+PART 1 - District Career Page:
+1. Find their official careers/employment page URL
+2. Count open positions
+3. List types of roles (teachers, admin, support staff, etc.)
+4. Note urgent hiring needs or hard-to-fill positions
 
-If you can't find a careers page, search for "{district_name} {state} jobs" or "{district_name} employment" to see if they post jobs elsewhere."""
+PART 2 - Indeed Analysis:
+Search Indeed for "{district_name} {state}" jobs and provide:
+1. How many listings are on Indeed?
+2. Do any have "Easy Apply" enabled? (this is important - note specifically)
+3. What's the average posting age (how recent are they)?
+
+PART 3 - Competitive Analysis:
+Compare {district_name} to these similar districts on Indeed:
+{json.dumps([d['name'] for d in similar_districts], indent=2)}
+
+For each district, check Indeed and note:
+- Number of open postings
+- Use of "Easy Apply"
+- Competitiveness score (1-10, where 10 = most competitive/aggressive recruiting)
+
+Then provide an overall competitiveness score for {district_name} vs. similar districts.
+
+PART 4 - Financial Health Assessment:
+Research {district_name}'s financial situation:
+1. Search for recent budget reports, financial statements, or audit reports
+2. Look for news about budget deficits, surpluses, or financial challenges
+3. Check for mentions of bond measures or funding initiatives
+4. Find student-per-teacher ratios or per-pupil spending if available
+5. Provide a Financial Health Score (1-10, where 10 = excellent financial health)
+   - Consider: recent budget news, stability, per-pupil spending trends
+   - Include brief reasoning for the score
+
+Format with clear sections and include relevant URLs."""
 
         try:
             message = self.anthropic.messages.create(
                 model="claude-sonnet-4-20250514",
-                max_tokens=2000,
+                max_tokens=3500,
                 tools=[{
                     "type": "web_search_20250305",
                     "name": "web_search"
@@ -115,7 +249,6 @@ If you can't find a careers page, search for "{district_name} {state} jobs" or "
                 ]
             )
             
-            # Extract text from response
             job_info = ""
             for block in message.content:
                 if block.type == "text":
@@ -124,50 +257,107 @@ If you can't find a careers page, search for "{district_name} {state} jobs" or "
             return job_info.strip()
         
         except Exception as e:
-            print(f"⚠️  Could not scrape job website: {e}")
-            return "Unable to retrieve current job postings from website."
+            return f"Unable to retrieve job postings analysis. Error: {str(e)}"
     
-    def analyze_with_claude(self, district_name, district_data, similar_districts, job_scrape_info):
-        """Use Claude API to analyze board meetings and generate report"""
+    def research_contacts(self, contact_names, district_name):
+        """Research contacts for meeting preparation"""
+        if not contact_names or not contact_names.strip():
+            return None
+            
+        prompt = f"""Research these contacts from {district_name} for meeting preparation:
+
+{contact_names}
+
+For each person, please find:
+1. Current role/title at {district_name}
+2. LinkedIn profile (URL if available)
+3. Professional background and experience
+4. Recent news mentions or accomplishments
+5. Are they likely a key decision-maker for hiring/recruitment? (Yes/No and why)
+6. Any public statements about staffing or education priorities
+
+Provide specific URLs and sources for all information found."""
+
+        try:
+            message = self.anthropic.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=3000,
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search"
+                }],
+                messages=[
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            
+            contact_info = ""
+            for block in message.content:
+                if block.type == "text":
+                    contact_info += block.text + "\n"
+            
+            return contact_info.strip()
         
-        # Prepare the prompt for Claude
-        prompt = f"""I need you to create a 1-page district profile for {district_name}.
+        except Exception as e:
+            return f"Unable to research contacts. Error: {str(e)}"
+    
+    def analyze_with_claude(self, district_name, district_data, similar_districts, job_scrape_info, contact_research=None):
+        """Enhanced Claude analysis with references"""
+        
+        contact_section = ""
+        if contact_research:
+            contact_section = f"""
+MEETING CONTACTS RESEARCH:
+{contact_research}
+"""
+        
+        demographics = district_data.get('demographics', {})
+        frl_pct = demographics.get('free_reduced_lunch_pct', 'N/A')
+        minority_pct = demographics.get('minority_pct', 'N/A')
+        
+        prompt = f"""Create a concise, well-formatted district profile for {district_name}.
 
 BASIC INFORMATION:
-- Total Enrollment: {district_data['enrollment']:,}
-- Number of Schools: {district_data['num_schools']}
-- Job Postings in Database: {district_data['total_jobs']}
+- Enrollment: {district_data['enrollment']:,}
+- Schools: {district_data['num_schools']}
 - Location: {district_data['county']}, {district_data['state']}
 - LEA ID: {district_data['leaId']}
+- Free/Reduced Lunch: {frl_pct}%
+- Minority Population: {minority_pct}%
 
 SIMILAR DISTRICTS:
 {json.dumps(similar_districts, indent=2)}
 
-CURRENT JOB POSTINGS (from website):
+JOB POSTINGS & FINANCIAL ANALYSIS:
 {job_scrape_info}
 
-Please help me gather one more critical insight:
+{contact_section}
 
-**School Board Meetings**: Search for recent school board meeting minutes or agendas from {district_name}. Have they mentioned:
+Search for recent school board meeting minutes/agendas from {district_name} focusing on:
 - Staffing challenges or teacher shortages
-- Recruitment initiatives or hiring difficulties  
-- Budget issues related to personnel
-- Any mentions of partnering with external recruiting firms
+- Recruitment initiatives
+- Budget/personnel issues
+- External recruiting partnerships
 
-Look for meetings from the past 2-3 years if available.
+CRITICAL: For every claim you make, include the source URL in brackets like [Source: https://example.com]
 
-Then create a structured summary with these sections:
-1. District Overview (size, key facts)
-2. Current Hiring Needs (based on job postings)
-3. School Board Staffing Discussions (what you found in meeting notes)
-4. Similar Districts Comparison
-5. Sales Approach Recommendations (based on all the above)
+Create sections (use these exact headers):
+1. DISTRICT OVERVIEW (include key demographics and financial health context)
+2. CURRENT HIRING LANDSCAPE
+3. INDEED COMPETITIVENESS ANALYSIS
+4. FINANCIAL HEALTH ASSESSMENT (expand on financial score from research)
+5. SCHOOL BOARD INSIGHTS{"" if not contact_research else ""}
+{"6. MEETING CONTACTS INTEL" if contact_research else ""}
+{"7. SIMILAR DISTRICTS COMPARISON" if contact_research else "6. SIMILAR DISTRICTS COMPARISON"}
+{"8. SALES APPROACH" if contact_research else "7. SALES APPROACH"}
 
-Format this as a professional brief that would help our sales team prepare for outreach.
+In SALES APPROACH, consider:
+- How FRL% and demographics affect recruiting challenges
+- How financial health impacts their ability to hire/retain
+- Budget constraints or opportunities
 
-Please format your response as a structured report with clear sections."""
+Keep each section concise (3-4 sentences max). Focus on actionable insights. Include source URLs."""
 
-        # Call Claude API
         message = self.anthropic.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=4000,
@@ -180,7 +370,6 @@ Please format your response as a structured report with clear sections."""
             ]
         )
         
-        # Extract text from response
         analysis = ""
         for block in message.content:
             if block.type == "text":
@@ -188,87 +377,564 @@ Please format your response as a structured report with clear sections."""
         
         return analysis.strip()
     
-  √
-    def save_report(self, report, output_dir="reports"):
-        """Save report to file"""
+    def generate_report(self, district_name, contact_names=None):
+        """Main method to generate complete district report"""
+        district_data = self.get_district_basics(district_name)
+        
+        if not district_data:
+            return None
+        
+        similar_districts = self.find_similar_districts(district_data)
+        
+        # Track API calls for cost estimation
+        api_calls = []
+        
+        # Enhanced job scraping with Indeed analysis
+        try:
+            print(f"Starting job scraping for {district_name}")
+            job_scrape_info = self.scrape_job_website_with_indeed(
+                district_name, 
+                district_data['state'],
+                similar_districts
+            )
+            api_calls.append({"type": "job_scraping", "tokens": 3500})
+            print("Job scraping complete")
+        except Exception as e:
+            print(f"Job scraping error: {str(e)}")
+            job_scrape_info = f"Unable to retrieve job information. Error: {str(e)}"
+        
+        # Research contacts if provided
+        contact_research = None
+        if contact_names:
+            try:
+                print(f"Starting contact research")
+                contact_research = self.research_contacts(contact_names, district_name)
+                api_calls.append({"type": "contact_research", "tokens": 3000})
+                print("Contact research complete")
+            except Exception as e:
+                print(f"Contact research error: {str(e)}")
+                contact_research = f"Unable to research contacts. Error: {str(e)}"
+        
+        # Generate analysis
+        try:
+            print(f"Starting Claude analysis")
+            claude_analysis = self.analyze_with_claude(
+                district_name, 
+                district_data, 
+                similar_districts,
+                job_scrape_info,
+                contact_research
+            )
+            api_calls.append({"type": "analysis", "tokens": 4000})
+            print("Claude analysis complete")
+        except Exception as e:
+            print(f"Claude analysis error: {str(e)}")
+            claude_analysis = f"Unable to generate full analysis. Error: {str(e)}"
+        
+        # Calculate estimated cost
+        total_tokens = sum(call["tokens"] for call in api_calls)
+        input_tokens = int(total_tokens * 0.6)
+        output_tokens = int(total_tokens * 0.4)
+        estimated_cost = (input_tokens / 1_000_000 * 3) + (output_tokens / 1_000_000 * 15)
+        
+        report = {
+            "district_name": district_name,
+            "generated_at": datetime.now().isoformat(),
+            "basic_data": district_data,
+            "similar_districts": similar_districts,
+            "job_scrape_info": job_scrape_info,
+            "contact_research": contact_research,
+            "claude_analysis": claude_analysis,
+            "api_calls": api_calls,
+            "estimated_cost": round(estimated_cost, 3)
+        }
+        
+        return report
+    
+    def generate_demo_script(self, district_name):
+        """
+        Generate demo script using MongoDB data + ONE targeted web search for board minutes
+        Handles cases where job data might not be available
+        
+        Perfect for: Sales calls, demo prep with recent board context
+        Cost: ~$0.006, Time: ~15 seconds
+        """
+        
+        # Get all data from MongoDB
+        district_data = self.get_district_basics(district_name)
+        if not district_data:
+            return None
+        
+        similar_districts = self.find_similar_districts(district_data)
+        demographics = district_data.get('demographics', {})
+        
+        # Get schools breakdown for more context
+        from bson import ObjectId
+        district_id = ObjectId(district_data.get('_id')) if isinstance(district_data.get('_id'), str) else district_data.get('_id')
+        schools = list(self.db.schools.find({"districtId": district_id}))
+        
+        # Analyze school types
+        elementary = [s for s in schools if 'elementary' in s.get('name', '').lower()]
+        middle = [s for s in schools if 'middle' in s.get('name', '').lower()]
+        high = [s for s in schools if 'high' in s.get('name', '').lower()]
+        
+        # Handle missing job data gracefully
+        jobs_data = district_data.get('total_jobs', 0)
+        jobs_info = f"• Current Job Postings: {jobs_data}" if jobs_data else "• Job posting data not available (district may not use Applitrack)"
+        
+        # Build prompt
+        prompt = f"""You are a sales strategist preparing for a call with {district_name}. Using the data provided AND a targeted web search, create a comprehensive demo preparation script.
+
+═══════════════════════════════════════════════════════════════
+DISTRICT PROFILE: {district_name}
+═══════════════════════════════════════════════════════════════
+
+BASICS:
+• Location: {district_data['county']} County, {district_data['state']}
+• Total Enrollment: {district_data['enrollment']:,} students
+• Number of Schools: {district_data['num_schools']}
+  - Elementary: {len(elementary)} schools
+  - Middle: {len(middle)} schools  
+  - High: {len(high)} schools
+{jobs_info}
+
+DEMOGRAPHICS:
+• Free/Reduced Lunch: {demographics.get('free_reduced_lunch_pct', 'N/A')}%
+• White Students: {demographics.get('white_pct', 'N/A')}%
+• Minority Students: {demographics.get('minority_pct', 'N/A')}%
+
+CLIENT STATUS:
+• Target Client: {'Yes' if district_data.get('is_target_client') else 'No'}
+• Radar Client: {'Yes' if district_data.get('is_radar_client') else 'No'}
+
+SIMILAR DISTRICTS:
+{chr(10).join([f"• {d['name']}: {d['enrollment']:,} students, {d['num_schools']} schools{', ' + str(d.get('total_jobs', 0)) + ' jobs' if d.get('total_jobs') else ''}" for d in similar_districts[:5]])}
+
+═══════════════════════════════════════════════════════════════
+WEB RESEARCH TASK:
+═══════════════════════════════════════════════════════════════
+
+Search for: "{district_name} {district_data['state']} school board minutes staffing OR recruiting OR workforce OR teacher shortage OR hiring"
+
+Find recent (2024-2025):
+1. Board meeting discussions about staffing/recruiting challenges
+2. News stories about workforce issues or teacher shortages
+3. Mentions of recruitment strategies, hiring events, or external partners
+4. Budget discussions related to personnel
+
+Include specific quotes, dates, and source URLs.
+
+═══════════════════════════════════════════════════════════════
+CREATE DEMO SCRIPT WITH THESE SECTIONS:
+═══════════════════════════════════════════════════════════════
+
+1. OPENING QUESTIONS (5-7 questions)
+   Reference their data AND recent board/news findings.
+   Example: "I saw in your October board minutes you discussed SPED staffing. With {district_data['enrollment']:,} students, is that still your biggest challenge?"
+
+2. RECENT CONTEXT (3-4 insights from web search)
+   What did you learn from board minutes and news?
+   - Recent staffing challenges mentioned
+   - Recruitment initiatives they're trying  
+   - Budget constraints affecting hiring
+   - External partnerships mentioned
+   Include dates and source URLs.
+
+3. KEY TALKING POINTS (4-5 points)
+   What to emphasize given their situation + recent context.
+   Connect our solution to problems mentioned in search.
+
+4. PAIN POINTS TO PROBE (3-4 challenges)
+   Based on data AND board/news mentions.
+   Reference specific issues from search results.
+
+5. COMPETITIVE CONTEXT (2-3 insights)
+   Compare to similar districts using the data.
+
+6. VALUE PROPOSITION ANGLE (1 paragraph)
+   Given their specific situation AND recent challenges.
+   Connect to problems mentioned in board minutes/news.
+
+7. OBJECTION HANDLING (2-3 objections)
+   Based on profile and any budget/contract mentions in search.
+
+8. CLOSING RECOMMENDATIONS (2-3 strategies)
+
+═══════════════════════════════════════════════════════════════
+FORMATTING:
+═══════════════════════════════════════════════════════════════
+
+• Use specific numbers from data
+• Reference specific board meetings/news with dates
+• Include source URLs for all findings
+• Questions should reference recent events
+• Bold key numbers and developments
+• Keep concise but complete
+
+Begin:"""
+
+        try:
+            print(f"Generating demo script for {district_name} (with board search)")
+            
+            # ONE TARGETED WEB SEARCH - Just board minutes/news
+            import time
+            message = self.anthropic.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=3500,
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_search_results": 3  # CRITICAL: Only 3 results
+                }],
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            script = ""
+            for block in message.content:
+                if block.type == "text":
+                    script += block.text + "\n"
+            
+            print(f"Demo script complete for {district_name}")
+            
+            # Delay to respect rate limits
+            time.sleep(8)  # ~7 scripts/minute with search
+            
+            return {
+                "district_name": district_name,
+                "generated_at": datetime.now().isoformat(),
+                "script_type": "demo_with_board_search",
+                "basic_data": district_data,
+                "similar_districts": similar_districts,
+                "demo_script": script,
+                "estimated_cost": 0.006,
+                "generation_time": "~15 seconds",
+                "has_job_data": bool(jobs_data)
+            }
+            
+        except Exception as e:
+            print(f"Error generating demo script: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise
+    
+    def generate_pdf(self, report):
+        """Generate PDF with improved formatting"""
         if not report:
             return None
         
-        os.makedirs(output_dir, exist_ok=True)
+        # Create PDF in memory
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter,
+                              topMargin=0.75*inch, bottomMargin=0.75*inch)
+        story = []
+        styles = getSampleStyleSheet()
         
-        # Create filename from district name and timestamp
+        # Custom styles with bold headers
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            textColor=HexColor('#1a1a1a'),
+            spaceAfter=20,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=13,
+            textColor=HexColor('#2563eb'),
+            spaceAfter=8,
+            spaceBefore=12,
+            fontName='Helvetica-Bold'
+        )
+        
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=14,
+            spaceAfter=8
+        )
+        
+        # Title
+        story.append(Paragraph(f"{report['district_name']}", title_style))
+        gen_date = datetime.fromisoformat(report['generated_at']).strftime("%B %d, %Y")
+        story.append(Paragraph(f"<i>Generated: {gen_date}</i>", body_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Basic Information
+        story.append(Paragraph("<b>BASIC INFORMATION</b>", heading_style))
+        data = report['basic_data']
+        demographics = data.get('demographics', {})
+        
+        # Format demographics
+        frl_text = f"{demographics.get('free_reduced_lunch_pct', 'N/A')}%" if demographics.get('free_reduced_lunch_pct') else "N/A"
+        white_text = f"{demographics.get('white_pct', 'N/A')}%" if demographics.get('white_pct') else "N/A"
+        minority_text = f"{demographics.get('minority_pct', 'N/A')}%" if demographics.get('minority_pct') else "N/A"
+        
+        basic_info = f"""<b>District Profile:</b> Enrollment: {data['enrollment']:,} | Schools: {data['num_schools']} | Location: {data['county']}, {data['state']}<br/>
+<b>Demographics:</b> Free/Reduced Lunch: {frl_text} | White: {white_text} | Minority: {minority_text}<br/>
+<b>Status:</b> Target Client: {'Yes' if data['is_target_client'] else 'No'} | Radar Client: {'Yes' if data['is_radar_client'] else 'No'}"""
+        story.append(Paragraph(basic_info, body_style))
+        story.append(Spacer(1, 0.15*inch))
+        
+        # Similar Districts (condensed)
+        story.append(Paragraph("<b>SIMILAR DISTRICTS</b>", heading_style))
+        similar_text = " | ".join([
+            f"{d['name']} ({d['enrollment']:,})" 
+            for d in report['similar_districts']
+        ])
+        story.append(Paragraph(similar_text, body_style))
+        story.append(Spacer(1, 0.15*inch))
+        
+        # Parse and format the Claude analysis with bold headers
+        analysis_text = report['claude_analysis']
+        
+        # Split by common section headers and format
+        lines = analysis_text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if not line:
+                story.append(Spacer(1, 0.1*inch))
+                continue
+                
+            # Check if it's a header (all caps or starts with number)
+            if (line.isupper() and len(line) < 50) or re.match(r'^\d+\.', line):
+                story.append(Paragraph(f"<b>{line}</b>", heading_style))
+            else:
+                # Convert markdown links to HTML links
+                line = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', r'<a href="\2" color="blue">\1</a>', line)
+                # Convert [Source: URL] to clickable links
+                line = re.sub(r'\[Source: ([^\]]+)\]', r'<a href="\1" color="blue">[Source]</a>', line)
+                story.append(Paragraph(line, body_style))
+        
+        # Build PDF
+        doc.build(story)
+        
+        pdf_data = buffer.getvalue()
+        buffer.close()
+        
+        return pdf_data
+    
+    def save_report_to_db(self, report, pdf_data):
+        """Save report and PDF to MongoDB"""
         district_name = report["district_name"].replace(" ", "_")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{output_dir}/{district_name}_{timestamp}.json"
+        filename = f"{district_name}_{timestamp}.pdf"
         
-        with open(filename, 'w') as f:
-            json.dump(report, f, indent=2)
+        # Store in MongoDB
+        report_doc = {
+            "filename": filename,
+            "district_name": report["district_name"],
+            "generated_at": datetime.now(),
+            "pdf_data": base64.b64encode(pdf_data).decode('utf-8'),
+            "report_json": report
+        }
         
-        print(f"✅ Report saved to: {filename}")
+        self.db.generated_reports.insert_one(report_doc)
+        
         return filename
     
-    def print_report(self, report):
-        """Print report to console"""
+    def get_all_reports(self):
+        """Retrieve all reports from MongoDB"""
+        reports = list(self.db.generated_reports.find().sort("generated_at", -1))
+        
+        return [
+            {
+                "filename": r["filename"],
+                "district_name": r["district_name"],
+                "created": r["generated_at"].isoformat(),
+                "size": len(base64.b64decode(r["pdf_data"])),
+                "estimated_cost": r["report_json"].get("estimated_cost", 0)
+            }
+            for r in reports
+        ]
+    
+    def get_report_pdf(self, filename):
+        """Retrieve PDF from MongoDB"""
+        report = self.db.generated_reports.find_one({"filename": filename})
+        
         if not report:
-            return
+            return None
         
-        print("\n" + "="*60)
-        print(f"DISTRICT REPORT: {report['district_name']}")
-        print("="*60)
-        
-        print("\n📋 BASIC INFORMATION")
-        print("-" * 60)
-        data = report['basic_data']
-        print(f"LEA ID: {data['leaId']}")
-        print(f"Enrollment: {data['enrollment']:,}")
-        print(f"Number of Schools: {data['num_schools']}")
-        print(f"Job Postings in Database: {data['total_jobs']}")
-        print(f"Location: {data['county']}, {data['state']}")
-        print(f"Target Client: {'Yes' if data['is_target_client'] else 'No'}")
-        print(f"Radar Client: {'Yes' if data['is_radar_client'] else 'No'}")
-        
-        print("\n🔗 SIMILAR DISTRICTS")
-        print("-" * 60)
-        for district in report['similar_districts']:
-            print(f"• {district['name']} ({district['county']})")
-            print(f"  Enrollment: {district['enrollment']:,}, Schools: {district['num_schools']}, Jobs: {district['total_jobs']}")
-        
-        print("\n💼 CURRENT JOB POSTINGS (from website)")
-        print("-" * 60)
-        print(report['job_scrape_info'])
-        
-        print("\n🤖 CLAUDE ANALYSIS")
-        print("-" * 60)
-        print(report['claude_analysis'])
-        print("\n" + "="*60)
+        return base64.b64decode(report["pdf_data"])
 
+# Initialize generator
+mongodb_uri = os.getenv("MONGODB_URI")
+anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+generator = DistrictReportGenerator(mongodb_uri, anthropic_api_key)
 
-def main():
-    load_dotenv()
-    # Load configuration from environment variables
-    mongodb_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
-    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+@app.route('/')
+def index():
+    """Main page"""
+    states = generator.get_all_states()
+    return render_template('index.html', states=states)
+
+@app.route('/api/search', methods=['POST'])
+def search():
+    """Search districts API endpoint"""
+    data = request.json
     
-    if not anthropic_api_key:
-        print("❌ Error: ANTHROPIC_API_KEY environment variable not set")
-        print("Please set it with: export ANTHROPIC_API_KEY='your-api-key'")
-        return
+    districts = generator.search_districts(
+        search_text=data.get('search_text'),
+        state=data.get('state'),
+        county=data.get('county'),
+        min_enrollment=data.get('min_enrollment'),
+        max_enrollment=data.get('max_enrollment')
+    )
     
-    # Get district name from user
-    district_name = input("\nEnter district name to research: ").strip()
+    # Add demographics to each district
+    for district in districts:
+        district_id = district.get('_id')
+        if district_id:
+            from bson import ObjectId
+            demographics = generator.calculate_district_demographics(ObjectId(district_id))
+            district['demographics'] = demographics
+    
+    return jsonify(districts)
+
+@app.route('/api/generate-report', methods=['POST'])
+def generate_report():
+    """Generate report for a district"""
+    data = request.json
+    district_name = data.get('district_name')
+    contact_names = data.get('contact_names')
     
     if not district_name:
-        print("❌ District name required")
-        return
+        return jsonify({"error": "District name required"}), 400
     
-    # Generate report
-    generator = DistrictReportGenerator(mongodb_uri, anthropic_api_key)
-    report = generator.generate_report(district_name)
+    try:
+        print(f"Starting report generation for {district_name}")
+        report = generator.generate_report(district_name, contact_names)
+        
+        if not report:
+            print(f"District not found: {district_name}")
+            return jsonify({"error": "District not found"}), 404
+        
+        print(f"Report generated, creating PDF...")
+        # Generate PDF
+        pdf_data = generator.generate_pdf(report)
+        
+        if not pdf_data:
+            print("PDF generation failed")
+            return jsonify({"error": "PDF generation failed"}), 500
+        
+        print(f"Saving to MongoDB...")
+        # Save to MongoDB
+        pdf_filename = generator.save_report_to_db(report, pdf_data)
+        
+        print(f"Report complete: {pdf_filename}")
+        
+        return jsonify({
+            "success": True,
+            "pdf_filename": pdf_filename,
+            "report": report  # Include full report for demo section
+        })
     
-    if report:
-        generator.print_report(report)
-        generator.save_report(report)
+    except Exception as e:
+        print(f"Error generating report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
+@app.route('/api/reports')
+def list_reports():
+    """List all generated reports from MongoDB"""
+    try:
+        reports = generator.get_all_reports()
+        return jsonify(reports)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-if __name__ == "__main__":
-    main()
+@app.route('/api/generate-demo-script', methods=['POST'])
+def generate_demo_script_endpoint():
+    """Generate demo script using MongoDB data + board minutes search"""
+    data = request.json
+    district_name = data.get('district_name')
+    
+    if not district_name:
+        return jsonify({"error": "District name required"}), 400
+    
+    try:
+        print(f"Generating demo script for {district_name}")
+        result = generator.generate_demo_script(district_name)
+        
+        if not result:
+            return jsonify({"error": "District not found"}), 404
+        
+        print(f"Demo script complete for {district_name}")
+        
+        return jsonify({
+            "success": True,
+            "script": result
+        })
+    
+    except Exception as e:
+        print(f"Error generating demo script: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route('/api/download/<filename>')
+def download_report(filename):
+    """Download a PDF report from MongoDB"""
+    try:
+        pdf_data = generator.get_report_pdf(filename)
+        
+        if not pdf_data:
+            return jsonify({"error": "File not found"}), 404
+        
+        return Response(
+            pdf_data,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'attachment;filename={filename}'}
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/report-preview/<filename>')
+def preview_report(filename):
+    """Get report JSON data for preview"""
+    try:
+        report = generator.db.generated_reports.find_one({"filename": filename})
+        
+        if not report:
+            return jsonify({"error": "Report not found"}), 404
+        
+        # Return the report JSON without the PDF data
+        return jsonify({
+            "filename": report["filename"],
+            "district_name": report["district_name"],
+            "generated_at": report["generated_at"].isoformat(),
+            "report_json": report["report_json"]
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/cost-stats')
+def cost_stats():
+    """Get total cost statistics"""
+    try:
+        reports = list(generator.db.generated_reports.find())
+        
+        if not reports:
+            return jsonify({
+                "total_reports": 0,
+                "total_cost": 0,
+                "avg_cost_per_report": 0
+            })
+        
+        total_cost = sum(r["report_json"].get("estimated_cost", 0) for r in reports)
+        
+        return jsonify({
+            "total_reports": len(reports),
+            "total_cost": round(total_cost, 2),
+            "avg_cost_per_report": round(total_cost / len(reports), 3)
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
