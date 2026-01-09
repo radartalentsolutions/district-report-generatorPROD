@@ -451,6 +451,186 @@ Keep each section concise (3-4 sentences max). Focus on actionable insights. Inc
         
         return report
     
+    def generate_demo_script(self, district_name):
+        """
+        Generate demo script using MongoDB data + ONE targeted web search for board minutes
+        Handles cases where job data might not be available
+        
+        Perfect for: Sales calls, demo prep with recent board context
+        Cost: ~$0.006, Time: ~15 seconds
+        """
+        
+        try:
+            # Get all data from MongoDB
+            district_data = self.get_district_basics(district_name)
+            if not district_data:
+                return None
+            
+            similar_districts = self.find_similar_districts(district_data)
+            demographics = district_data.get('demographics', {})
+            
+            # Get schools breakdown for more context
+            try:
+                from bson import ObjectId
+                # Handle _id conversion carefully
+                district_id = district_data.get('_id')
+                if isinstance(district_id, str):
+                    district_id = ObjectId(district_id)
+                
+                schools = list(self.db.schools.find({"districtId": district_id}))
+            except Exception as e:
+                print(f"Warning: Could not fetch schools data: {str(e)}")
+                schools = []
+            
+            # Analyze school types
+            elementary = [s for s in schools if 'elementary' in s.get('name', '').lower()]
+            middle = [s for s in schools if 'middle' in s.get('name', '').lower()]
+            high = [s for s in schools if 'high' in s.get('name', '').lower()]
+            
+            # Handle missing job data gracefully
+            jobs_data = district_data.get('total_jobs', 0)
+            jobs_info = f"• Current Job Postings: {jobs_data}" if jobs_data else "• Job posting data not available (district may not use Applitrack)"
+            
+            # Build prompt
+            prompt = f"""You are a sales strategist preparing for a call with {district_name}. Using the data provided AND a targeted web search, create a comprehensive demo preparation script.
+
+═══════════════════════════════════════════════════════════════
+DISTRICT PROFILE: {district_name}
+═══════════════════════════════════════════════════════════════
+
+BASICS:
+• Location: {district_data.get('county', 'Unknown')} County, {district_data.get('state', 'Unknown')}
+• Total Enrollment: {district_data.get('enrollment', 0):,} students
+• Number of Schools: {district_data.get('num_schools', 0)}
+  - Elementary: {len(elementary)} schools
+  - Middle: {len(middle)} schools  
+  - High: {len(high)} schools
+{jobs_info}
+
+DEMOGRAPHICS:
+• Free/Reduced Lunch: {demographics.get('free_reduced_lunch_pct', 'N/A')}%
+• White Students: {demographics.get('white_pct', 'N/A')}%
+• Minority Students: {demographics.get('minority_pct', 'N/A')}%
+
+CLIENT STATUS:
+• Target Client: {'Yes' if district_data.get('is_target_client') else 'No'}
+• Radar Client: {'Yes' if district_data.get('is_radar_client') else 'No'}
+
+SIMILAR DISTRICTS:
+{chr(10).join([f"• {d.get('name', 'Unknown')}: {d.get('enrollment', 0):,} students, {d.get('num_schools', 0)} schools{', ' + str(d.get('total_jobs', 0)) + ' jobs' if d.get('total_jobs') else ''}" for d in similar_districts[:5]])}
+
+═══════════════════════════════════════════════════════════════
+WEB RESEARCH TASK:
+═══════════════════════════════════════════════════════════════
+
+Search for: "{district_name} {district_data.get('state', '')} school board minutes staffing OR recruiting OR workforce OR teacher shortage OR hiring"
+
+Find recent (2024-2025):
+1. Board meeting discussions about staffing/recruiting challenges
+2. News stories about workforce issues or teacher shortages
+3. Mentions of recruitment strategies, hiring events, or external partners
+4. Budget discussions related to personnel
+
+Include specific quotes, dates, and source URLs.
+
+═══════════════════════════════════════════════════════════════
+CREATE DEMO SCRIPT WITH THESE SECTIONS:
+═══════════════════════════════════════════════════════════════
+
+1. OPENING QUESTIONS (5-7 questions)
+   Reference their data AND recent board/news findings.
+   Example: "I saw in your October board minutes you discussed SPED staffing. With {district_data.get('enrollment', 0):,} students, is that still your biggest challenge?"
+
+2. RECENT CONTEXT (3-4 insights from web search)
+   What did you learn from board minutes and news?
+   - Recent staffing challenges mentioned
+   - Recruitment initiatives they're trying  
+   - Budget constraints affecting hiring
+   - External partnerships mentioned
+   Include dates and source URLs.
+
+3. KEY TALKING POINTS (4-5 points)
+   What to emphasize given their situation + recent context.
+   Connect our solution to problems mentioned in search.
+
+4. PAIN POINTS TO PROBE (3-4 challenges)
+   Based on data AND board/news mentions.
+   Reference specific issues from search results.
+
+5. COMPETITIVE CONTEXT (2-3 insights)
+   Compare to similar districts using the data.
+
+6. VALUE PROPOSITION ANGLE (1 paragraph)
+   Given their specific situation AND recent challenges.
+   Connect to problems mentioned in board minutes/news.
+
+7. OBJECTION HANDLING (2-3 objections)
+   Based on profile and any budget/contract mentions in search.
+
+8. CLOSING RECOMMENDATIONS (2-3 strategies)
+
+═══════════════════════════════════════════════════════════════
+FORMATTING:
+═══════════════════════════════════════════════════════════════
+
+• Use specific numbers from data
+• Reference specific board meetings/news with dates
+• Include source URLs for all findings
+• Questions should reference recent events
+• Bold key numbers and developments
+• Keep concise but complete
+
+Begin:"""
+
+            print(f"Generating demo script for {district_name} (with board search)")
+            
+            # ONE TARGETED WEB SEARCH - Just board minutes/news
+            import time
+            message = self.anthropic.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=3500,
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_search_results": 3  # CRITICAL: Only 3 results
+                }],
+                messages=[{"role": "user", "content": prompt}]
+            )
+            
+            script = ""
+            for block in message.content:
+                if block.type == "text":
+                    script += block.text + "\n"
+            
+            print(f"Demo script complete for {district_name}")
+            
+            # Delay to respect rate limits
+            time.sleep(8)  # ~7 scripts/minute with search
+            
+            return {
+                "district_name": district_name,
+                "generated_at": datetime.now().isoformat(),
+                "script_type": "demo_with_board_search",
+                "basic_data": district_data,
+                "similar_districts": similar_districts,
+                "demo_script": script,
+                "estimated_cost": 0.006,
+                "generation_time": "~15 seconds",
+                "has_job_data": bool(jobs_data)
+            }
+            
+        except Exception as e:
+            print(f"Error generating demo script: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            # Return detailed error info
+            return {
+                "error": True,
+                "error_message": str(e),
+                "district_name": district_name,
+                "error_type": type(e).__name__
+            }
+    
     def generate_pdf(self, report):
         """Generate PDF with improved formatting"""
         if not report:
@@ -681,6 +861,45 @@ def list_reports():
         return jsonify(reports)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/generate-demo-script', methods=['POST'])
+def generate_demo_script_endpoint():
+    """Generate demo script using MongoDB data + board minutes search"""
+    data = request.json
+    district_name = data.get('district_name')
+    
+    if not district_name:
+        return jsonify({"error": "District name required"}), 400
+    
+    try:
+        print(f"Generating demo script for {district_name}")
+        result = generator.generate_demo_script(district_name)
+        
+        if not result:
+            return jsonify({"error": "District not found"}), 404
+        
+        # Check if result contains an error
+        if isinstance(result, dict) and result.get('error'):
+            error_msg = result.get('error_message', 'Unknown error')
+            error_type = result.get('error_type', 'Error')
+            print(f"Demo script error: {error_type}: {error_msg}")
+            return jsonify({
+                "error": f"{error_type}: {error_msg}",
+                "district_name": district_name
+            }), 500
+        
+        print(f"Demo script complete for {district_name}")
+        
+        return jsonify({
+            "success": True,
+            "script": result
+        })
+    
+    except Exception as e:
+        print(f"Error generating demo script: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 @app.route('/api/download/<filename>')
 def download_report(filename):

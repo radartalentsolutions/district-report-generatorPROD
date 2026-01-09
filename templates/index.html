@@ -1281,59 +1281,77 @@
         
         function displayDemoScript(scriptData) {
             const discoveryDiv = document.getElementById('discoveryQuestions');
-            const demographics = scriptData.basic_data.demographics || {};
-            const hasJobData = scriptData.has_job_data;
             
-            // Format the demo script (assuming it comes as formatted text)
-            const scriptText = scriptData.demo_script;
+            // Add debugging
+            console.log('Script Data:', scriptData);
             
-            // Convert the script text to HTML with proper formatting
-            let formattedScript = scriptText
-                .replace(/## (.+)/g, '<h4 style="color: #02223C; font-family: \'Space Grotesk\', sans-serif; margin: 20px 0 10px 0;">$1</h4>')
-                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                .replace(/• (.+)/g, '<div class="question-item"><p class="question-text">$1</p></div>')
-                .replace(/\[Source: ([^\]]+)\]/g, '<a href="$1" target="_blank" class="source-link">[Source]</a>')
-                .replace(/\n\n/g, '</p><p>')
-                .replace(/^\d+\.\s+(.+)$/gm, '<h4 style="color: #116753; font-family: \'Space Grotesk\', sans-serif; margin: 20px 0 10px 0; font-size: 18px;"><span class="question-icon">📋</span> $1</h4>');
-            
-            let html = `
-                <div class="data-insight" style="margin-bottom: 20px;">
-                    <h5>📊 District Quick Facts</h5>
-                    <div class="insight-stat">
-                        <span class="stat-label">District Size:</span>
-                        <span class="stat-value">${(scriptData.basic_data.enrollment || 0).toLocaleString()} students</span>
-                    </div>
-                    <div class="insight-stat">
-                        <span class="stat-label">Number of Schools:</span>
-                        <span class="stat-value">${scriptData.basic_data.num_schools || 0}</span>
-                    </div>
-                    ${hasJobData ? `
-                    <div class="insight-stat">
-                        <span class="stat-label">Current Job Postings:</span>
-                        <span class="stat-value">${scriptData.basic_data.total_jobs || 0}</span>
-                    </div>
-                    ` : `
-                    <div class="insight-stat" style="background: #FED46B; padding: 10px; border-radius: 6px; margin-top: 10px;">
-                        <span class="stat-label" style="color: #02223C;">⚠️ Job Data:</span>
-                        <span style="color: #02223C; font-weight: 600;">Not available - District may not use Applitrack</span>
-                    </div>
-                    `}
-                    <div class="insight-stat">
-                        <span class="stat-label">Free/Reduced Lunch:</span>
-                        <span class="stat-value">${demographics.free_reduced_lunch_pct || 'N/A'}%</span>
-                    </div>
-                    <div class="insight-stat">
-                        <span class="stat-label">Minority Population:</span>
-                        <span class="stat-value">${demographics.minority_pct || 'N/A'}%</span>
-                    </div>
-                </div>
+            try {
+                // Safely access nested properties
+                const basicData = scriptData.basic_data || {};
+                const demographics = basicData.demographics || {};
+                const hasJobData = scriptData.has_job_data || false;
                 
-                <div class="analysis-content" style="background: white; padding: 20px; border-radius: 8px;">
-                    ${formattedScript}
-                </div>
-            `;
-            
-            discoveryDiv.innerHTML = html;
+                // Format the demo script (assuming it comes as formatted text)
+                const scriptText = scriptData.demo_script || 'No script content available';
+                
+                // Convert the script text to HTML with proper formatting
+                let formattedScript = scriptText
+                    .replace(/## (.+)/g, '<h4 style="color: #02223C; font-family: \'Space Grotesk\', sans-serif; margin: 20px 0 10px 0;">$1</h4>')
+                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/• (.+)/g, '<div class="question-item"><p class="question-text">$1</p></div>')
+                    .replace(/\[Source: ([^\]]+)\]/g, '<a href="$1" target="_blank" class="source-link">[Source]</a>')
+                    .replace(/\n\n/g, '</p><p>')
+                    .replace(/^\d+\.\s+(.+)$/gm, '<h4 style="color: #116753; font-family: \'Space Grotesk\', sans-serif; margin: 20px 0 10px 0; font-size: 18px;"><span class="question-icon">📋</span> $1</h4>');
+                
+                let html = `
+                    <div class="data-insight" style="margin-bottom: 20px;">
+                        <h5>📊 District Quick Facts</h5>
+                        <div class="insight-stat">
+                            <span class="stat-label">District Size:</span>
+                            <span class="stat-value">${(basicData.enrollment || 0).toLocaleString()} students</span>
+                        </div>
+                        <div class="insight-stat">
+                            <span class="stat-label">Number of Schools:</span>
+                            <span class="stat-value">${basicData.num_schools || 0}</span>
+                        </div>
+                        ${hasJobData ? `
+                        <div class="insight-stat">
+                            <span class="stat-label">Current Job Postings:</span>
+                            <span class="stat-value">${basicData.total_jobs || 0}</span>
+                        </div>
+                        ` : `
+                        <div class="insight-stat" style="background: #FED46B; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                            <span class="stat-label" style="color: #02223C;">⚠️ Job Data:</span>
+                            <span style="color: #02223C; font-weight: 600;">Not available - District may not use Applitrack</span>
+                        </div>
+                        `}
+                        <div class="insight-stat">
+                            <span class="stat-label">Free/Reduced Lunch:</span>
+                            <span class="stat-value">${demographics.free_reduced_lunch_pct || 'N/A'}%</span>
+                        </div>
+                        <div class="insight-stat">
+                            <span class="stat-label">Minority Population:</span>
+                            <span class="stat-value">${demographics.minority_pct || 'N/A'}%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="analysis-content" style="background: white; padding: 20px; border-radius: 8px;">
+                        ${formattedScript}
+                    </div>
+                `;
+                
+                discoveryDiv.innerHTML = html;
+            } catch (error) {
+                console.error('Error displaying demo script:', error);
+                discoveryDiv.innerHTML = `
+                    <div class="preview-error">
+                        <strong>Error displaying demo script:</strong><br>
+                        ${error.message}<br><br>
+                        <strong>Debug Info:</strong><br>
+                        <pre>${JSON.stringify(scriptData, null, 2)}</pre>
+                    </div>
+                `;
+            }
         }
         
         function hideDemo() {
