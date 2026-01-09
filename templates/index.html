@@ -14,7 +14,7 @@
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Proxima Nova', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #02223C 0%, #116753 100%);
             min-height: 100vh;
             padding: 20px;
@@ -167,6 +167,22 @@
             margin-bottom: 4px;
         }
         
+        .district-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-demo {
+            background: linear-gradient(135deg, #89BEF4 0%, #02223C 100%);
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+        
+        .btn-demo:hover {
+            background: linear-gradient(135deg, #78ade3 0%, #116753 100%);
+            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
+        }
+        
         .btn-generate {
             background: linear-gradient(135deg, #D776C2 0%, #89BEF4 100%);
             padding: 10px 20px;
@@ -176,60 +192,6 @@
         .btn-generate:hover {
             background: linear-gradient(135deg, #c565b1 0%, #78ade3 100%);
             box-shadow: 0 5px 15px rgba(215, 118, 194, 0.4);
-        }
-        
-        .reports-section {
-            margin-top: 40px;
-            padding-top: 40px;
-            border-top: 2px solid #89BEF4;
-        }
-        
-        .reports-section h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 20px;
-        }
-        
-        .report-item {
-            border: 1px solid #89BEF4;
-            border-radius: 8px;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            transition: border-color 0.2s;
-        }
-        
-        .report-item:hover {
-            border-color: #D776C2;
-        }
-        
-        .report-info {
-            flex: 1;
-        }
-        
-        .report-info h4 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 500;
-            margin-bottom: 5px;
-            color: #02223C;
-        }
-        
-        .report-info small {
-            color: #666;
-        }
-        
-        .btn-download {
-            background: #116753;
-            padding: 8px 16px;
-            font-size: 14px;
-        }
-        
-        .btn-download:hover {
-            background: #0d4f3f;
-            box-shadow: 0 5px 15px rgba(17, 103, 83, 0.4);
         }
         
         .loading {
@@ -271,319 +233,6 @@
             border: 1px solid #ef4444;
         }
         
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(2, 34, 60, 0.6);
-        }
-        
-        .modal-content {
-            background-color: white;
-            margin: 10% auto;
-            padding: 30px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 20px 60px rgba(2, 34, 60, 0.4);
-            border: 2px solid #89BEF4;
-        }
-        
-        .modal-header {
-            margin-bottom: 20px;
-        }
-        
-        .modal-header h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 10px;
-        }
-        
-        .modal-header p {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .modal-body textarea {
-            width: 100%;
-            min-height: 120px;
-            padding: 10px;
-            border: 1px solid #89BEF4;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: vertical;
-        }
-        
-        .modal-body textarea:focus {
-            outline: none;
-            border-color: #D776C2;
-            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
-        }
-        
-        .modal-footer {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-        
-        .btn-secondary {
-            background: #89BEF4;
-            color: #02223C;
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        .btn-secondary:hover {
-            background: #78ade3;
-            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
-        }
-        
-        #reportSearch {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #89BEF4;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-        
-        #reportSearch:focus {
-            outline: none;
-            border-color: #D776C2;
-            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
-        }
-        
-        #reportSearch::placeholder {
-            color: #999;
-        }
-        
-        .btn-view {
-            background: #89BEF4;
-            color: #02223C;
-            padding: 8px 16px;
-            font-size: 14px;
-        }
-        
-        .btn-view:hover {
-            background: #78ade3;
-            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
-        }
-        
-        .report-preview {
-            margin-top: 15px;
-            border: 2px solid #89BEF4;
-            border-radius: 8px;
-            background: #f8f9fa;
-            overflow: hidden;
-        }
-        
-        .preview-content {
-            padding: 20px;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .preview-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            color: white;
-        }
-        
-        .preview-header h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin: 0;
-        }
-        
-        .btn-close {
-            background: transparent;
-            border: 2px solid white;
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 18px;
-            line-height: 1;
-            transition: all 0.2s;
-        }
-        
-        .btn-close:hover {
-            background: white;
-            color: #02223C;
-        }
-        
-        .preview-section {
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        .preview-section:last-child {
-            border-bottom: none;
-        }
-        
-        .preview-section h4 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 12px;
-            font-size: 16px;
-        }
-        
-        .preview-section p {
-            margin: 8px 0;
-            color: #333;
-            line-height: 1.6;
-        }
-        
-        .preview-section pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            background: white;
-            padding: 15px;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-            font-size: 13px;
-            line-height: 1.6;
-            color: #333;
-        }
-        
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        
-        .info-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #89BEF4;
-        }
-        
-        .info-label {
-            display: block;
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .info-value {
-            display: block;
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            font-size: 18px;
-            color: #02223C;
-        }
-        
-        .similar-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-        }
-        
-        .similar-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        
-        .similar-card strong {
-            color: #02223C;
-            font-size: 16px;
-        }
-        
-        .similar-card span {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .analysis-content {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            line-height: 1.8;
-            color: #333;
-        }
-        
-        .analysis-content p {
-            margin-bottom: 15px;
-        }
-        
-        .analysis-content strong {
-            color: #02223C;
-        }
-        
-        .analysis-header {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #116753;
-            font-size: 18px;
-            margin: 25px 0 15px 0;
-        }
-        
-        .analysis-header:first-child {
-            margin-top: 0;
-        }
-        
-        .source-link {
-            color: #89BEF4;
-            text-decoration: none;
-            font-size: 13px;
-            margin-left: 5px;
-        }
-        
-        .source-link:hover {
-            color: #116753;
-            text-decoration: underline;
-        }
-        
-        .preview-loading {
-            padding: 40px;
-            text-align: center;
-            color: #666;
-        }
-        
-        .preview-error {
-            padding: 20px;
-            background: #fee2e2;
-            color: #991b1b;
-            border-radius: 6px;
-            margin: 10px;
-        }
-        
-        .cost-stats {
-            background: linear-gradient(135deg, #E8F0CA 0%, #FED46B 100%);
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #02223C;
-            border: 2px solid #116753;
-        }
-        
-        .cost-stats span {
-            margin: 0 10px;
-        }
-        
         /* Demo Section Styles */
         .demo-section {
             background: linear-gradient(135deg, #f8f9fa 0%, #e8f0f5 100%);
@@ -592,6 +241,7 @@
             padding: 0;
             margin-bottom: 30px;
             overflow: hidden;
+            display: none;
         }
         
         .demo-header {
@@ -679,12 +329,6 @@
         
         .demo-card-body {
             padding: 30px;
-        }
-        
-        .loading-placeholder {
-            text-align: center;
-            padding: 40px 20px;
-            color: #666;
         }
         
         /* Discovery Questions Styles */
@@ -946,6 +590,358 @@
             color: #333;
             font-style: italic;
         }
+        
+        /* Reports Section */
+        .reports-section {
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 2px solid #89BEF4;
+        }
+        
+        .reports-section h2 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            color: #02223C;
+            margin-bottom: 20px;
+        }
+        
+        .cost-stats {
+            background: linear-gradient(135deg, #E8F0CA 0%, #FED46B 100%);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #02223C;
+            border: 2px solid #116753;
+        }
+        
+        .cost-stats span {
+            margin: 0 10px;
+        }
+        
+        #reportSearch {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #89BEF4;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        #reportSearch:focus {
+            outline: none;
+            border-color: #D776C2;
+            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
+        }
+        
+        #reportSearch::placeholder {
+            color: #999;
+        }
+        
+        .report-item {
+            border: 1px solid #89BEF4;
+            border-radius: 8px;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            transition: border-color 0.2s;
+        }
+        
+        .report-item:hover {
+            border-color: #D776C2;
+        }
+        
+        .report-info {
+            flex: 1;
+        }
+        
+        .report-info h4 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: #02223C;
+        }
+        
+        .report-info small {
+            color: #666;
+        }
+        
+        .btn-view {
+            background: #89BEF4;
+            color: #02223C;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        
+        .btn-view:hover {
+            background: #78ade3;
+            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
+        }
+        
+        .btn-download {
+            background: #116753;
+            padding: 8px 16px;
+            font-size: 14px;
+        }
+        
+        .btn-download:hover {
+            background: #0d4f3f;
+            box-shadow: 0 5px 15px rgba(17, 103, 83, 0.4);
+        }
+        
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(2, 34, 60, 0.6);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(2, 34, 60, 0.4);
+            border: 2px solid #89BEF4;
+        }
+        
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            color: #02223C;
+            margin-bottom: 10px;
+        }
+        
+        .modal-header p {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .modal-body textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 10px;
+            border: 1px solid #89BEF4;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+        }
+        
+        .modal-body textarea:focus {
+            outline: none;
+            border-color: #D776C2;
+            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
+        }
+        
+        .modal-footer {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        
+        .btn-secondary {
+            background: #89BEF4;
+            color: #02223C;
+            padding: 10px 20px;
+            font-size: 14px;
+        }
+        
+        .btn-secondary:hover {
+            background: #78ade3;
+            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
+        }
+        
+        /* Report Preview Styles */
+        .report-preview {
+            margin-top: 15px;
+            border: 2px solid #89BEF4;
+            border-radius: 8px;
+            background: #f8f9fa;
+            overflow: hidden;
+        }
+        
+        .preview-content {
+            padding: 20px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
+            color: white;
+        }
+        
+        .preview-header h3 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .btn-close {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            line-height: 1;
+            transition: all 0.2s;
+        }
+        
+        .btn-close:hover {
+            background: white;
+            color: #02223C;
+        }
+        
+        .preview-section {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .preview-section:last-child {
+            border-bottom: none;
+        }
+        
+        .preview-section h4 {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            color: #02223C;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        
+        .info-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #89BEF4;
+        }
+        
+        .info-label {
+            display: block;
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .info-value {
+            display: block;
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            font-size: 18px;
+            color: #02223C;
+        }
+        
+        .similar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .similar-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .similar-card strong {
+            color: #02223C;
+            font-size: 16px;
+        }
+        
+        .similar-card span {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .analysis-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e0e0e0;
+            line-height: 1.8;
+            color: #333;
+        }
+        
+        .analysis-content p {
+            margin-bottom: 15px;
+        }
+        
+        .analysis-content strong {
+            color: #02223C;
+        }
+        
+        .analysis-header {
+            font-family: 'Space Grotesk', sans-serif;
+            font-weight: 600;
+            color: #116753;
+            font-size: 18px;
+            margin: 25px 0 15px 0;
+        }
+        
+        .analysis-header:first-child {
+            margin-top: 0;
+        }
+        
+        .source-link {
+            color: #89BEF4;
+            text-decoration: none;
+            font-size: 13px;
+            margin-left: 5px;
+        }
+        
+        .source-link:hover {
+            color: #116753;
+            text-decoration: underline;
+        }
+        
+        .preview-loading {
+            padding: 40px;
+            text-align: center;
+            color: #666;
+        }
+        
+        .preview-error {
+            padding: 20px;
+            background: #fee2e2;
+            color: #991b1b;
+            border-radius: 6px;
+            margin: 10px;
+        }
     </style>
 </head>
 <body>
@@ -956,14 +952,62 @@
         </header>
         
         <div class="content">
-            <!-- Demo Preparation Section -->
-            <div class="demo-section">
-                <div class="demo-header">
-                    <h2>🎯 Demo Preparation for {{ district_name or "District" }}</h2>
-                    <button class="btn-toggle" onclick="toggleDemo()">Show/Hide</button>
+            <!-- Search Section - At Top -->
+            <div class="search-section">
+                <h2>🔍 Search & Select District</h2>
+                
+                <div class="filters">
+                    <div class="filter-group">
+                        <label>District Name</label>
+                        <input type="text" id="searchText" placeholder="Search by name...">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>State</label>
+                        <select id="stateFilter">
+                            <option value="">All States</option>
+                            {% for state in states %}
+                            <option value="{{ state }}">{{ state }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>County</label>
+                        <input type="text" id="countyFilter" placeholder="Enter county...">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Min Enrollment</label>
+                        <input type="number" id="minEnrollment" placeholder="0">
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Max Enrollment</label>
+                        <input type="number" id="maxEnrollment" placeholder="100000">
+                    </div>
                 </div>
                 
-                <div id="demoContent" class="demo-content" style="display: none;">
+                <button class="btn" onclick="searchDistricts()">Search Districts</button>
+            </div>
+            
+            <!-- Message Area -->
+            <div id="messageArea"></div>
+            
+            <!-- Results Section -->
+            <div class="results" id="resultsSection" style="display:none;">
+                <h2>Search Results - Choose an Action</h2>
+                <div class="district-list" id="districtList"></div>
+            </div>
+            
+            <!-- Demo Preparation Section - Hidden Until Triggered -->
+            <div class="demo-section" id="demoSection">
+                <div class="demo-header">
+                    <h2 id="demoDistrictName">🎯 Demo Preparation</h2>
+                    <button class="btn-toggle" onclick="hideDemo()">Hide</button>
+                </div>
+                
+                <div class="demo-content" id="demoContent">
                     <!-- Part 1: Discovery Questions -->
                     <div class="demo-card">
                         <div class="demo-card-header">
@@ -971,10 +1015,7 @@
                             <h3>Discovery Questions</h3>
                         </div>
                         <div class="demo-card-body" id="discoveryQuestions">
-                            <div class="loading-placeholder">
-                                <div class="spinner"></div>
-                                <p>Generate a report to see tailored questions...</p>
-                            </div>
+                            <!-- Will be populated by JavaScript -->
                         </div>
                     </div>
                     
@@ -1075,54 +1116,6 @@
                 </div>
             </div>
             
-            <!-- Search Section -->
-            <div class="search-section">
-                <h2>🔍 Search Districts</h2>
-                
-                <div class="filters">
-                    <div class="filter-group">
-                        <label>District Name</label>
-                        <input type="text" id="searchText" placeholder="Search by name...">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>State</label>
-                        <select id="stateFilter">
-                            <option value="">All States</option>
-                            {% for state in states %}
-                            <option value="{{ state }}">{{ state }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>County</label>
-                        <input type="text" id="countyFilter" placeholder="Enter county...">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Min Enrollment</label>
-                        <input type="number" id="minEnrollment" placeholder="0">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Max Enrollment</label>
-                        <input type="number" id="maxEnrollment" placeholder="100000">
-                    </div>
-                </div>
-                
-                <button class="btn" onclick="searchDistricts()">Search Districts</button>
-            </div>
-            
-            <!-- Message Area -->
-            <div id="messageArea"></div>
-            
-            <!-- Results Section -->
-            <div class="results" id="resultsSection" style="display:none;">
-                <h2>Search Results</h2>
-                <div class="district-list" id="districtList"></div>
-            </div>
-            
             <!-- Reports Section -->
             <div class="reports-section">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -1156,112 +1149,14 @@
     
     <script>
         let currentDistrict = null;
-        let allReports = []; // Store all reports for filtering
-        let currentReport = null; // Store current report for demo prep
+        let allReports = [];
+        let currentDistrictData = null;
         
         // Load previous reports on page load
         window.onload = function() {
             loadReports();
             loadCostStats();
         };
-        
-        function toggleDemo() {
-            const demoContent = document.getElementById('demoContent');
-            if (demoContent.style.display === 'none') {
-                demoContent.style.display = 'block';
-            } else {
-                demoContent.style.display = 'none';
-            }
-        }
-        
-        function populateDemoQuestions(report) {
-            currentReport = report;
-            const discoveryDiv = document.getElementById('discoveryQuestions');
-            
-            // Parse job info to extract department data
-            const jobInfo = report.job_scrape_info || '';
-            const analysis = report.claude_analysis || '';
-            
-            // Build discovery questions HTML
-            let questionsHTML = `
-                <div class="question-group">
-                    <h4><span class="question-icon">🎯</span> Opening Questions</h4>
-                    <div class="question-item">
-                        <p class="question-text"><strong>"What is the goal of this call? Why did you decide to join today?"</strong></p>
-                    </div>
-                    <div class="question-item">
-                        <p class="question-text">"How is recruiting and retention going for you right now?"</p>
-                    </div>
-                </div>
-                
-                <div class="question-group">
-                    <h4><span class="question-icon">📊</span> Data-Driven Questions</h4>
-                    <div class="question-item">
-                        <p class="question-text">"Are you getting enough applicants for your open positions?"</p>
-                    </div>
-                    <div class="question-item">
-                        <p class="question-text">"Are you happy with your role vacancy fill rate and timing?"</p>
-                    </div>
-                </div>
-            `;
-            
-            // Add data insights if we have job info
-            if (jobInfo && jobInfo.length > 100) {
-                questionsHTML += `
-                    <div class="data-insight">
-                        <h5>📈 Use This Data in Your Conversation:</h5>
-                        <div class="insight-stat">
-                            <span class="stat-label">Current Open Positions:</span>
-                            <span class="stat-value">${report.basic_data.total_jobs || 'See report'}</span>
-                        </div>
-                        <div class="insight-stat">
-                            <span class="stat-label">District Size:</span>
-                            <span class="stat-value">${report.basic_data.enrollment.toLocaleString()} students</span>
-                        </div>
-                        <div class="insight-stat">
-                            <span class="stat-label">Free/Reduced Lunch:</span>
-                            <span class="stat-value">${report.basic_data.demographics?.free_reduced_lunch_pct || 'N/A'}%</span>
-                        </div>
-                    </div>
-                    
-                    <div class="question-group" style="margin-top: 25px;">
-                        <h4><span class="question-icon">🎓</span> Department-Specific Questions</h4>
-                        <div class="question-item">
-                            <p class="question-text">"I noticed you have openings across multiple departments. Which areas are proving most challenging to fill?"</p>
-                        </div>
-                        <div class="question-item">
-                            <p class="question-text">"How long have your current vacancies been open on average?"</p>
-                        </div>
-                        <div class="question-item">
-                            <p class="question-text">"What's your biggest pain point in the recruiting process right now?"</p>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            discoveryDiv.innerHTML = questionsHTML;
-            
-            // Auto-show demo section when report is generated
-            document.getElementById('demoContent').style.display = 'block';
-        }
-        
-        async function loadCostStats() {
-            try {
-                const response = await fetch('/api/cost-stats');
-                const stats = await response.json();
-                
-                const costStatsDiv = document.getElementById('costStats');
-                costStatsDiv.innerHTML = `
-                    💰 Total: $${stats.total_cost.toFixed(2)} 
-                    <span>|</span> 
-                    📊 Reports: ${stats.total_reports} 
-                    <span>|</span> 
-                    📈 Avg: $${stats.avg_cost_per_report.toFixed(3)}/report
-                `;
-            } catch (error) {
-                console.error('Error loading cost stats:', error);
-            }
-        }
         
         function showMessage(message, type = 'success') {
             const messageArea = document.getElementById('messageArea');
@@ -1320,9 +1215,14 @@
                             <p><strong>Enrollment:</strong> ${(district.totalEnrollment || 0).toLocaleString()} | <strong>Schools:</strong> ${district.totalSchools || 0} | <strong>Jobs:</strong> ${district.totalJobs || 0}</p>
                             <p><strong>FRL:</strong> ${frlText} | <strong>Minority:</strong> ${minorityText}</p>
                         </div>
-                        <button class="btn btn-generate" onclick="openContactModal('${district.name.replace(/'/g, "\\'")}')">
-                            Generate Report
-                        </button>
+                        <div class="district-actions">
+                            <button class="btn btn-demo" onclick='showDemoPrep(${JSON.stringify(district)})'>
+                                📋 Demo Prep
+                            </button>
+                            <button class="btn btn-generate" onclick="openContactModal('${district.name.replace(/'/g, "\\'")}')">
+                                📄 Full Report
+                            </button>
+                        </div>
                     </div>
                 `}).join('');
                 
@@ -1330,6 +1230,84 @@
                 districtList.innerHTML = '<p class="loading" style="color: red;">Error searching districts. Please try again.</p>';
                 console.error('Search error:', error);
             }
+        }
+        
+        function showDemoPrep(districtData) {
+            currentDistrictData = districtData;
+            
+            // Update header with district name
+            document.getElementById('demoDistrictName').innerText = `🎯 Demo Preparation for ${districtData.name}`;
+            
+            // Populate discovery questions
+            const demographics = districtData.demographics || {};
+            const discoveryDiv = document.getElementById('discoveryQuestions');
+            
+            let questionsHTML = `
+                <div class="question-group">
+                    <h4><span class="question-icon">🎯</span> Opening Questions</h4>
+                    <div class="question-item">
+                        <p class="question-text"><strong>"What is the goal of this call? Why did you decide to join today?"</strong></p>
+                    </div>
+                    <div class="question-item">
+                        <p class="question-text">"How is recruiting and retention going for you right now?"</p>
+                    </div>
+                </div>
+                
+                <div class="question-group">
+                    <h4><span class="question-icon">📊</span> Data-Driven Questions</h4>
+                    <div class="question-item">
+                        <p class="question-text">"Are you getting enough applicants for your open positions?"</p>
+                    </div>
+                    <div class="question-item">
+                        <p class="question-text">"Are you happy with your role vacancy fill rate and timing?"</p>
+                    </div>
+                </div>
+                
+                <div class="data-insight">
+                    <h5>📈 Use This Data in Your Conversation:</h5>
+                    <div class="insight-stat">
+                        <span class="stat-label">Current Open Positions:</span>
+                        <span class="stat-value">${districtData.totalJobs || 0}</span>
+                    </div>
+                    <div class="insight-stat">
+                        <span class="stat-label">District Size:</span>
+                        <span class="stat-value">${(districtData.totalEnrollment || 0).toLocaleString()} students</span>
+                    </div>
+                    <div class="insight-stat">
+                        <span class="stat-label">Free/Reduced Lunch:</span>
+                        <span class="stat-value">${demographics.free_reduced_lunch_pct || 'N/A'}%</span>
+                    </div>
+                    <div class="insight-stat">
+                        <span class="stat-label">Minority Population:</span>
+                        <span class="stat-value">${demographics.minority_pct || 'N/A'}%</span>
+                    </div>
+                </div>
+                
+                <div class="question-group" style="margin-top: 25px;">
+                    <h4><span class="question-icon">🎓</span> Department-Specific Questions</h4>
+                    <div class="question-item">
+                        <p class="question-text">"I noticed you have ${districtData.totalJobs || 0} open positions. Which departments are proving most challenging to fill?"</p>
+                    </div>
+                    <div class="question-item">
+                        <p class="question-text">"How long have your current vacancies been open on average?"</p>
+                    </div>
+                    <div class="question-item">
+                        <p class="question-text">"What's your biggest pain point in the recruiting process right now?"</p>
+                    </div>
+                </div>
+            `;
+            
+            discoveryDiv.innerHTML = questionsHTML;
+            
+            // Show demo section
+            document.getElementById('demoSection').style.display = 'block';
+            
+            // Scroll to demo section
+            document.getElementById('demoSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        function hideDemo() {
+            document.getElementById('demoSection').style.display = 'none';
         }
         
         function openContactModal(districtName) {
@@ -1385,7 +1363,6 @@
                         contact_names: contactNames
                     }),
                     signal: controller.signal,
-                    // Prevent browser from timing out
                     keepalive: true
                 });
                 
@@ -1400,13 +1377,6 @@
                 }
                 
                 showMessage(`✅ Report generated successfully for ${districtName}! (${Math.floor(seconds / 60)}m ${seconds % 60}s)`, 'success');
-                
-                // Populate demo section with report data
-                if (result.report) {
-                    populateDemoQuestions(result.report);
-                    // Scroll to demo section
-                    document.querySelector('.demo-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
                 
                 // Reload reports list and cost stats
                 loadReports();
@@ -1428,6 +1398,24 @@
             }
         }
         
+        async function loadCostStats() {
+            try {
+                const response = await fetch('/api/cost-stats');
+                const stats = await response.json();
+                
+                const costStatsDiv = document.getElementById('costStats');
+                costStatsDiv.innerHTML = `
+                    💰 Total: $${stats.total_cost.toFixed(2)} 
+                    <span>|</span> 
+                    📊 Reports: ${stats.total_reports} 
+                    <span>|</span> 
+                    📈 Avg: $${stats.avg_cost_per_report.toFixed(3)}/report
+                `;
+            } catch (error) {
+                console.error('Error loading cost stats:', error);
+            }
+        }
+        
         async function loadReports() {
             const reportsList = document.getElementById('reportsList');
             reportsList.innerHTML = '<div class="loading"><p>Loading reports...</p></div>';
@@ -1436,7 +1424,7 @@
                 const response = await fetch('/api/reports');
                 const reports = await response.json();
                 
-                allReports = reports; // Store for filtering
+                allReports = reports;
                 
                 if (reports.length === 0) {
                     reportsList.innerHTML = '<p class="loading">No reports generated yet.</p>';
@@ -1505,18 +1493,15 @@
         async function toggleReportPreview(reportId, filename) {
             const previewDiv = document.getElementById(`preview_${reportId}`);
             
-            // If already open, close it
             if (previewDiv.style.display === 'block') {
                 previewDiv.style.display = 'none';
                 return;
             }
             
-            // Show loading
             previewDiv.style.display = 'block';
             previewDiv.innerHTML = '<div class="preview-loading"><div class="spinner"></div><p>Loading report preview...</p></div>';
             
             try {
-                // Fetch the report data
                 const response = await fetch(`/api/report-preview/${filename}`);
                 const data = await response.json();
                 
@@ -1525,16 +1510,14 @@
                     return;
                 }
                 
-                // Build the preview HTML
                 const report = data.report_json;
                 const demographics = report.basic_data.demographics || {};
                 
-                // Format Claude analysis with sections
                 let formattedAnalysis = report.claude_analysis
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold markdown
-                    .replace(/\n\n/g, '</p><p>') // Paragraphs
-                    .replace(/^\d+\.\s+(.+)$/gm, '<h5 class="analysis-header">$1</h5>') // Headers
-                    .replace(/\[Source:\s*([^\]]+)\]/g, '<a href="$1" target="_blank" class="source-link">[Source]</a>'); // Links
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\n\n/g, '</p><p>')
+                    .replace(/^\d+\.\s+(.+)$/gm, '<h5 class="analysis-header">$1</h5>')
+                    .replace(/\[Source:\s*([^\]]+)\]/g, '<a href="$1" target="_blank" class="source-link">[Source]</a>');
                 
                 let previewHTML = `
                     <div class="preview-content">
