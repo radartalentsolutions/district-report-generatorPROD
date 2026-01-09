@@ -390,31 +390,48 @@ Keep each section concise (3-4 sentences max). Focus on actionable insights. Inc
         api_calls = []
         
         # Enhanced job scraping with Indeed analysis
-        job_scrape_info = self.scrape_job_website_with_indeed(
-            district_name, 
-            district_data['state'],
-            similar_districts
-        )
-        api_calls.append({"type": "job_scraping", "tokens": 3500})
+        try:
+            print(f"Starting job scraping for {district_name}")
+            job_scrape_info = self.scrape_job_website_with_indeed(
+                district_name, 
+                district_data['state'],
+                similar_districts
+            )
+            api_calls.append({"type": "job_scraping", "tokens": 3500})
+            print("Job scraping complete")
+        except Exception as e:
+            print(f"Job scraping error: {str(e)}")
+            job_scrape_info = f"Unable to retrieve job information. Error: {str(e)}"
         
         # Research contacts if provided
         contact_research = None
         if contact_names:
-            contact_research = self.research_contacts(contact_names, district_name)
-            api_calls.append({"type": "contact_research", "tokens": 3000})
+            try:
+                print(f"Starting contact research")
+                contact_research = self.research_contacts(contact_names, district_name)
+                api_calls.append({"type": "contact_research", "tokens": 3000})
+                print("Contact research complete")
+            except Exception as e:
+                print(f"Contact research error: {str(e)}")
+                contact_research = f"Unable to research contacts. Error: {str(e)}"
         
         # Generate analysis
-        claude_analysis = self.analyze_with_claude(
-            district_name, 
-            district_data, 
-            similar_districts,
-            job_scrape_info,
-            contact_research
-        )
-        api_calls.append({"type": "analysis", "tokens": 4000})
+        try:
+            print(f"Starting Claude analysis")
+            claude_analysis = self.analyze_with_claude(
+                district_name, 
+                district_data, 
+                similar_districts,
+                job_scrape_info,
+                contact_research
+            )
+            api_calls.append({"type": "analysis", "tokens": 4000})
+            print("Claude analysis complete")
+        except Exception as e:
+            print(f"Claude analysis error: {str(e)}")
+            claude_analysis = f"Unable to generate full analysis. Error: {str(e)}"
         
-        # Calculate estimated cost (Claude Sonnet 4 pricing: ~$3 per 1M input tokens, ~$15 per 1M output tokens)
-        # Rough estimate: assume 60% input, 40% output
+        # Calculate estimated cost
         total_tokens = sum(call["tokens"] for call in api_calls)
         input_tokens = int(total_tokens * 0.6)
         output_tokens = int(total_tokens * 0.4)
@@ -623,25 +640,38 @@ def generate_report():
         return jsonify({"error": "District name required"}), 400
     
     try:
+        print(f"Starting report generation for {district_name}")
         report = generator.generate_report(district_name, contact_names)
         
         if not report:
+            print(f"District not found: {district_name}")
             return jsonify({"error": "District not found"}), 404
         
+        print(f"Report generated, creating PDF...")
         # Generate PDF
         pdf_data = generator.generate_pdf(report)
         
+        if not pdf_data:
+            print("PDF generation failed")
+            return jsonify({"error": "PDF generation failed"}), 500
+        
+        print(f"Saving to MongoDB...")
         # Save to MongoDB
         pdf_filename = generator.save_report_to_db(report, pdf_data)
+        
+        print(f"Report complete: {pdf_filename}")
         
         return jsonify({
             "success": True,
             "pdf_filename": pdf_filename,
-            "report": report
+            "report": report  # Include full report for demo section
         })
     
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Error generating report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 @app.route('/api/reports')
 def list_reports():
