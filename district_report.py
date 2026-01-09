@@ -188,49 +188,7 @@ Please format your response as a structured report with clear sections."""
         
         return analysis.strip()
     
-    def generate_report(self, district_name):
-        """Main method to generate complete district report"""
-        print(f"\n🔍 Generating report for {district_name}...")
-        
-        # Step 1: Get basic data from MongoDB
-        print("📊 Retrieving district data from database...")
-        district_data = self.get_district_basics(district_name)
-        
-        if not district_data:
-            print(f"❌ District '{district_name}' not found in database.")
-            return None
-        
-        # Step 2: Find similar districts
-        print("🔗 Finding similar districts...")
-        similar_districts = self.find_similar_districts(district_data)
-        
-        # Step 3: Scrape job website for current postings
-        job_scrape_info = self.scrape_job_website(
-            district_name, 
-            district_data['state']
-        )
-        
-        # Step 4: Use Claude to analyze board meetings and generate report
-        print("🤖 Using Claude API to analyze board meetings and generate report...")
-        claude_analysis = self.analyze_with_claude(
-            district_name, 
-            district_data, 
-            similar_districts,
-            job_scrape_info
-        )
-        
-        # Step 5: Combine everything into final report
-        report = {
-            "district_name": district_name,
-            "generated_at": datetime.now().isoformat(),
-            "basic_data": district_data,
-            "similar_districts": similar_districts,
-            "job_scrape_info": job_scrape_info,
-            "claude_analysis": claude_analysis
-        }
-        
-        return report
-    
+  √
     def save_report(self, report, output_dir="reports"):
         """Save report to file"""
         if not report:
