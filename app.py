@@ -652,7 +652,9 @@ Begin:"""
             if not district_id:
                 return {"error": "Invalid district ID"}
             
-            print(f"Looking for jobs with districtId: {district_id}")
+            print(f"District: {district_name}")
+            print(f"District ID: {district_id}")
+            print(f"District ID type: {type(district_id)}")
             
             # Query the jobs collection directly
             all_jobs = list(self.db.jobs.find({"districtId": district_id}))
@@ -660,16 +662,36 @@ Begin:"""
             print(f"Found {len(all_jobs)} jobs for {district_name}")
             
             if not all_jobs:
-                return {
-                    "error": "No jobs found",
-                    "message": f"No jobs found for {district_name} in the jobs collection. The district may not have scraped jobs yet."
-                }
+                # Try alternative - maybe districtId is stored as string
+                all_jobs_str = list(self.db.jobs.find({"districtId": str(district_id)}))
+                print(f"Found {len(all_jobs_str)} jobs using string districtId")
+                
+                if all_jobs_str:
+                    all_jobs = all_jobs_str
+                else:
+                    # Debug: Check what districtIds exist in jobs collection
+                    sample_jobs = list(self.db.jobs.find().limit(5))
+                    if sample_jobs:
+                        print(f"Sample districtId from jobs collection: {sample_jobs[0].get('districtId')} (type: {type(sample_jobs[0].get('districtId'))})")
+                    
+                    return {
+                        "error": "No jobs found",
+                        "message": f"No jobs found for {district_name} (ID: {district_id}). District may not have scraped jobs yet."
+                    }
             
-            # Add some logging to see what we got
+            # Add logging about first job
             if all_jobs:
                 sample_job = all_jobs[0]
                 print(f"Sample job fields: {list(sample_job.keys())}")
-                print(f"Sample job has classification: {'aiClassification' in sample_job}")
+                print(f"Sample job has aiClassification: {'aiClassification' in sample_job}")
+                print(f"Sample job title: {sample_job.get('title')}")
+            
+            # Convert ObjectIds to strings in job data for JSON serialization
+            for job in all_jobs:
+                if '_id' in job and isinstance(job['_id'], ObjectId):
+                    job['_id'] = str(job['_id'])
+                if 'districtId' in job and isinstance(job['districtId'], ObjectId):
+                    job['districtId'] = str(job['districtId'])
             
             # Analyze jobs
             analysis = self._analyze_jobs_for_hr(all_jobs, district_data)
