@@ -624,6 +624,304 @@ Begin:"""
                 "error_type": type(e).__name__
             }
     
+    
+    def generate_school_hr_report(self, district_name):
+        """
+        Generate HR Administrator Report focused on job posting quality
+        Requires: District has jobs scraped and classified in MongoDB
+        """
+        
+        try:
+            # Get district data
+            district_data = self.get_district_basics(district_name)
+            if not district_data:
+                return {"error": "District not found"}
+            
+            district_id_str = str(district_data.get('_id', ''))
+            
+            # Get all jobs for this district from schools collection
+            from bson import ObjectId
+            district_id = ObjectId(district_id_str) if district_id_str else None
+            
+            if not district_id:
+                return {"error": "Invalid district ID"}
+            
+            # Get schools for this district
+            schools = list(self.db.schools.find({"districtId": district_id}))
+            
+            if not schools:
+                return {"error": "No schools found for this district"}
+            
+            # Aggregate all jobs from all schools
+            all_jobs = []
+            for school in schools:
+                jobs = school.get('jobs', [])
+                for job in jobs:
+                    # Add school context
+                    job['school_name'] = school.get('name', 'Unknown School')
+                    all_jobs.append(job)
+            
+            if not all_jobs:
+                return {
+                    "error": "No jobs found",
+                    "message": "This district has no scraped Applitrack jobs. Jobs must be scraped and classified first."
+                }
+            
+            # Analyze jobs
+            analysis = self._analyze_jobs_for_hr(all_jobs, district_data)
+            
+            # Generate visualizations data
+            charts = self._generate_chart_data(all_jobs)
+            
+            # Compare wages to nearby districts
+            wage_comparison = self._compare_wages_to_nearby(district_data, all_jobs)
+            
+            # Generate quality report
+            quality_report = self._generate_quality_report(all_jobs)
+            
+            return {
+                "district_name": district_name,
+                "generated_at": datetime.now().isoformat(),
+                "report_type": "school_hr_admin",
+                "total_jobs": len(all_jobs),
+                "analysis": analysis,
+                "charts": charts,
+                "wage_comparison": wage_comparison,
+                "quality_report": quality_report,
+                "estimated_cost": 0.0
+            }
+            
+        except Exception as e:
+            print(f"Error generating school HR report: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "error": True,
+                "error_message": str(e),
+                "error_type": type(e).__name__
+            }
+    
+    def _analyze_jobs_for_hr(self, jobs, district_data):
+        """Analyze jobs for HR administrator insights"""
+        from collections import defaultdict
+        
+        # Group by category
+        by_category = defaultdict(list)
+        for job in jobs:
+            category = job.get('classification', {}).get('category', 'Unclassified')
+            by_category[category].append(job)
+        
+        # Calculate metrics by category
+        category_metrics = {}
+        for category, cat_jobs in by_category.items():
+            # Calculate average days open
+            days_open = []
+            for job in cat_jobs:
+                posted = job.get('datePosted')
+                if posted:
+                    try:
+                        if isinstance(posted, str):
+                            posted_date = datetime.fromisoformat(posted.replace('Z', '+00:00'))
+                        else:
+                            posted_date = posted
+                        
+                        if posted_date.tzinfo:
+                            days = (datetime.now(posted_date.tzinfo) - posted_date).days
+                        else:
+                            days = (datetime.now() - posted_date).days
+                        days_open.append(days)
+                    except:
+                        pass
+            
+            avg_days = sum(days_open) / len(days_open) if days_open else 0
+            
+            category_metrics[category] = {
+                "count": len(cat_jobs),
+                "avg_days_open": round(avg_days, 1),
+                "jobs": cat_jobs
+            }
+        
+        return {
+            "by_category": category_metrics,
+            "total_categories": len(category_metrics)
+        }
+    
+    def _generate_chart_data(self, jobs):
+        """Generate data for pie chart visualization"""
+        from collections import Counter
+        
+        # Count by category
+        categories = [job.get('classification', {}).get('category', 'Unclassified') for job in jobs]
+        category_counts = Counter(categories)
+        
+        # Prepare pie chart data
+        pie_data = {
+            "labels": list(category_counts.keys()),
+            "values": list(category_counts.values()),
+            "colors": self._get_category_colors(list(category_counts.keys()))
+        }
+        
+        return {
+            "pie_chart": pie_data
+        }
+    
+    def _get_category_colors(self, categories):
+        """Assign colors to job categories"""
+        color_map = {
+            "Teacher": "#116753",
+            "Support Staff": "#89BEF4",
+            "Administrator": "#D776C2",
+            "Specialist": "#FED46B",
+            "Paraprofessional": "#E8F0CA",
+            "Custodial": "#02223C",
+            "Transportation": "#4A90E2",
+            "Food Service": "#F39C12",
+            "Athletics": "#E74C3C",
+            "Unclassified": "#95A5A6"
+        }
+        return [color_map.get(cat, "#95A5A6") for cat in categories]
+    
+    def _compare_wages_to_nearby(self, district_data, jobs):
+        """Compare wages to nearby districts"""
+        from collections import defaultdict
+        
+        # Get nearby districts
+        nearby = list(self.db.districts.find({
+            "$or": [
+                {"county": district_data.get('county')},
+                {"state": district_data.get('state')}
+            ],
+            "name": {"$ne": district_data['name']}
+        }).limit(10))
+        
+        # Collect wages by type from this district
+        district_wages = {
+            "hourly": [],
+            "salary": [],
+            "stipend": []
+        }
+        
+        for job in jobs:
+            compensation = job.get('compensation', {})
+            wage_type = str(compensation.get('type', 'unknown')).lower()
+            amount = compensation.get('amount')
+            
+            if amount and isinstance(amount, (int, float)) and amount > 0:
+                wage_info = {
+                    "amount": amount,
+                    "title": job.get('title', 'Unknown'),
+                    "category": job.get('classification', {}).get('category', 'Unknown')
+                }
+                
+                if 'hour' in wage_type:
+                    district_wages['hourly'].append(wage_info)
+                elif 'salary' in wage_type or 'annual' in wage_type:
+                    district_wages['salary'].append(wage_info)
+                elif 'stipend' in wage_type:
+                    district_wages['stipend'].append(wage_info)
+        
+        return {
+            "district_wages": district_wages,
+            "nearby_districts": [d.get('name') for d in nearby],
+            "comparison_available": False,
+            "note": "Wage comparison requires nearby districts to have scraped jobs"
+        }
+    
+    def _generate_quality_report(self, jobs):
+        """Analyze job posting quality with specific callouts"""
+        import re
+        
+        quality_issues = []
+        top_jobs = []
+        opportunities = []
+        
+        for job in jobs:
+            job_score = 0
+            issues = []
+            
+            title = job.get('title', '')
+            description = job.get('description', '')
+            compensation = job.get('compensation', {})
+            
+            # Check for spelling errors
+            common_errors = [
+                ('techer', 'teacher'), ('adminstrator', 'administrator'),
+                ('assitant', 'assistant'), ('pricipal', 'principal'),
+                ('secratary', 'secretary'), ('libraian', 'librarian')
+            ]
+            
+            for wrong, right in common_errors:
+                if wrong in description.lower() or wrong in title.lower():
+                    issues.append(f"Spelling: '{wrong}' should be '{right}'")
+                    job_score -= 10
+            
+            # Check for wage/salary information
+            if not compensation.get('amount'):
+                issues.append("Missing salary/wage information")
+                job_score -= 20
+            else:
+                job_score += 20
+            
+            # Check for job description length
+            if len(description) < 100:
+                issues.append("Description too short (< 100 characters)")
+                job_score -= 15
+            elif len(description) > 200:
+                job_score += 15
+            
+            # Check for key information
+            required_fields = ['qualifications', 'requirements', 'responsibilities']
+            for field in required_fields:
+                if field.lower() in description.lower():
+                    job_score += 10
+                else:
+                    issues.append(f"Missing section: {field}")
+                    job_score -= 5
+            
+            # Check for application deadline
+            if job.get('deadline'):
+                job_score += 10
+            else:
+                issues.append("No application deadline specified")
+                job_score -= 5
+            
+            # Check for contact information
+            if 'contact' in description.lower() or 'email' in description.lower():
+                job_score += 5
+            
+            # Normalize score to 0-100
+            job_score = max(0, min(100, 50 + job_score))
+            
+            job_analysis = {
+                "title": title,
+                "school": job.get('school_name', 'Unknown'),
+                "category": job.get('classification', {}).get('category', 'Unclassified'),
+                "quality_score": job_score,
+                "issues": issues,
+                "posted_date": str(job.get('datePosted', 'Unknown'))
+            }
+            
+            # Categorize
+            if job_score >= 80:
+                top_jobs.append(job_analysis)
+            elif job_score < 50:
+                opportunities.append(job_analysis)
+            
+            if issues:
+                quality_issues.append(job_analysis)
+        
+        # Calculate overall quality score
+        all_scores = [job.get('quality_score', 0) for job in quality_issues + top_jobs + opportunities]
+        overall_score = sum(all_scores) / len(all_scores) if all_scores else 0
+        
+        return {
+            "overall_quality_score": round(overall_score, 1),
+            "total_jobs_analyzed": len(jobs),
+            "jobs_with_issues": len(quality_issues),
+            "top_performing_jobs": sorted(top_jobs, key=lambda x: x['quality_score'], reverse=True)[:5],
+            "improvement_opportunities": sorted(opportunities, key=lambda x: x['quality_score'])[:10],
+            "quality_issues": quality_issues
+        }
     def generate_pdf(self, report):
         """Generate PDF with improved formatting"""
         if not report:
@@ -955,3 +1253,35 @@ def cost_stats():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+@app.route('/api/generate-hr-report', methods=['POST'])
+def generate_hr_report_endpoint():
+    """Generate HR Administrator Report for job posting analysis"""
+    data = request.json
+    district_name = data.get('district_name')
+    
+    if not district_name:
+        return jsonify({"error": "District name required"}), 400
+    
+    try:
+        print(f"Generating HR report for {district_name}")
+        result = generator.generate_school_hr_report(district_name)
+        
+        if result.get('error'):
+            return jsonify({
+                "error": result.get('error'),
+                "message": result.get('message', result.get('error_message', 'Unknown error'))
+            }), 404 if result.get('error') == 'District not found' else 500
+        
+        print(f"HR report complete for {district_name}")
+        
+        return jsonify({
+            "success": True,
+            "report": result
+        })
+    
+    except Exception as e:
+        print(f"Error generating HR report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
