@@ -787,9 +787,21 @@ Begin:"""
             
             avg_days = sum(days_open) / len(days_open) if days_open else 0
             
+            # Calculate average word count for descriptions
+            word_counts = []
+            for job in cat_jobs:
+                description = job.get('fullDescription', '') or job.get('description', '')
+                if description:
+                    # Count words (split by whitespace)
+                    words = len(description.split())
+                    word_counts.append(words)
+            
+            avg_word_count = sum(word_counts) / len(word_counts) if word_counts else 0
+            
             category_metrics[category] = {
                 "count": len(cat_jobs),
                 "avg_days_open": round(avg_days, 1),
+                "avg_word_count": round(avg_word_count, 0),
                 "jobs": cat_jobs
             }
         
