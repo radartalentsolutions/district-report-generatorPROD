@@ -625,6 +625,21 @@ Begin:"""
             }
     
     
+    def _convert_objectids_to_strings(self, obj):
+        """Recursively convert all ObjectIds to strings for JSON serialization"""
+        from bson import ObjectId
+        
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        elif isinstance(obj, dict):
+            return {key: self._convert_objectids_to_strings(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._convert_objectids_to_strings(item) for item in obj]
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        else:
+            return obj
+    
     def generate_school_hr_report(self, district_name):
         """
         Generate HR Administrator Report focused on job posting quality
@@ -654,7 +669,6 @@ Begin:"""
             
             print(f"District: {district_name}")
             print(f"District ID: {district_id}")
-            print(f"District ID type: {type(district_id)}")
             
             # Query the jobs collection directly
             all_jobs = list(self.db.jobs.find({"districtId": district_id}))
@@ -669,53 +683,55 @@ Begin:"""
                 if all_jobs_str:
                     all_jobs = all_jobs_str
                 else:
-                    # Debug: Check what districtIds exist in jobs collection
-                    sample_jobs = list(self.db.jobs.find().limit(5))
-                    if sample_jobs:
-                        print(f"Sample districtId from jobs collection: {sample_jobs[0].get('districtId')} (type: {type(sample_jobs[0].get('districtId'))})")
-                    
                     return {
                         "error": "No jobs found",
-                        "message": f"No jobs found for {district_name} (ID: {district_id}). District may not have scraped jobs yet."
+                        "message": f"No jobs found for {district_name}. District may not have scraped jobs yet."
                     }
             
-            # Add logging about first job
-            if all_jobs:
-                sample_job = all_jobs[0]
-                print(f"Sample job fields: {list(sample_job.keys())}")
-                print(f"Sample job has aiClassification: {'aiClassification' in sample_job}")
-                print(f"Sample job title: {sample_job.get('title')}")
+            # CRITICAL: Convert ObjectIds IMMEDIATELY after fetching from MongoDB
+            print(f"Converting {len(all_jobs)} jobs ObjectIds to strings...")
+            all_jobs = self._convert_objectids_to_strings(all_jobs)
             
-            # Convert ObjectIds to strings in job data for JSON serialization
-            for job in all_jobs:
-                if '_id' in job and isinstance(job['_id'], ObjectId):
-                    job['_id'] = str(job['_id'])
-                if 'districtId' in job and isinstance(job['districtId'], ObjectId):
-                    job['districtId'] = str(job['districtId'])
+            # Count jobs with classifications
+            classified_count = sum(1 for job in all_jobs if job.get('aiClassification'))
+            print(f"Jobs with aiClassification: {classified_count}/{len(all_jobs)}")
             
             # Analyze jobs
+            print("Starting analysis...")
             analysis = self._analyze_jobs_for_hr(all_jobs, district_data)
             
             # Generate visualizations data
+            print("Generating charts...")
             charts = self._generate_chart_data(all_jobs)
             
             # Compare wages to nearby districts
+            print("Analyzing wages...")
             wage_comparison = self._compare_wages_to_nearby(district_data, all_jobs)
             
             # Generate quality report
+            print("Generating quality report...")
             quality_report = self._generate_quality_report(all_jobs)
             
-            return {
+            # Build result
+            result = {
                 "district_name": district_name,
                 "generated_at": datetime.now().isoformat(),
                 "report_type": "school_hr_admin",
                 "total_jobs": len(all_jobs),
+                "classified_jobs": classified_count,
                 "analysis": analysis,
                 "charts": charts,
                 "wage_comparison": wage_comparison,
                 "quality_report": quality_report,
                 "estimated_cost": 0.0
             }
+            
+            print("Converting result to JSON-safe format...")
+            # Final conversion to ensure everything is serializable
+            result = self._convert_objectids_to_strings(result)
+            
+            print("HR report generation complete")
+            return result
             
         except Exception as e:
             print(f"Error generating school HR report: {str(e)}")
@@ -731,12 +747,20 @@ Begin:"""
         """Analyze jobs for HR administrator insights"""
         from collections import defaultdict
         
-        # Group by department (using aiClassification or department field)
+        # Group by department (using aiClassification, department, or positionType)
         by_category = defaultdict(list)
         for job in jobs:
-            # Try to get category from aiClassification first, then department
+            # Try multiple fields to get category
             ai_classification = job.get('aiClassification', {})
-            category = ai_classification.get('category') or job.get('department') or 'Unclassified'
+            if isinstance(ai_classification, dict):
+                category = ai_classification.get('category')
+            else:
+                category = None
+            
+            # Fallback to department or positionType
+            if not category:
+                category = job.get('department') or job.get('positionType') or 'Unclassified'
+            
             by_category[category].append(job)
         
         # Calculate metrics by category
@@ -778,11 +802,19 @@ Begin:"""
         """Generate data for pie chart visualization"""
         from collections import Counter
         
-        # Count by category (from aiClassification or department)
+        # Count by category (from aiClassification, department, or positionType)
         categories = []
         for job in jobs:
             ai_classification = job.get('aiClassification', {})
-            category = ai_classification.get('category') or job.get('department') or 'Unclassified'
+            if isinstance(ai_classification, dict):
+                category = ai_classification.get('category')
+            else:
+                category = None
+            
+            # Fallback to department or positionType
+            if not category:
+                category = job.get('department') or job.get('positionType') or 'Unclassified'
+            
             categories.append(category)
         
         category_counts = Counter(categories)
