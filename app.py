@@ -860,6 +860,7 @@ Begin:"""
         }
         
         return {
+            "pie_chart": category_pie_data,  # Backwards compatibility
             "category_pie_chart": category_pie_data,
             "location_pie_chart": location_pie_data
         }
