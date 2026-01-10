@@ -545,9 +545,9 @@ Format as a natural script with clear sections. Be conversational but profession
             print("Generating charts...")
             charts = self._generate_chart_data(all_jobs)
             
-            # Generate quality report
+            # Generate quality report (without full descriptions for API response)
             print("Generating quality report...")
-            quality_report = self._generate_quality_report(all_jobs)
+            quality_report = self._generate_quality_report(all_jobs, include_full_descriptions=False)
             
             # Build result
             result = {
@@ -746,7 +746,7 @@ Format as a natural script with clear sections. Be conversational but profession
         
         return [colors[i % len(colors)] for i in range(len(locations))]
     
-    def _generate_quality_report(self, jobs):
+    def _generate_quality_report(self, jobs, include_full_descriptions=False):
         """Analyze job posting quality with specific callouts and explanations"""
         
         quality_issues = []
@@ -819,9 +819,6 @@ Format as a natural script with clear sections. Be conversational but profession
             # Normalize score to 0-100
             job_score = max(0, min(100, 50 + job_score))
             
-            # Get full job description for expandable view
-            full_description = description
-            
             job_analysis = {
                 "title": title,
                 "school": location or 'Location not specified',
@@ -830,9 +827,16 @@ Format as a natural script with clear sections. Be conversational but profession
                 "issues": issues,
                 "strengths": strengths,
                 "posted_date": str(job.get('datePosted', 'Unknown')),
-                "full_description": full_description,
-                "word_count": word_count
+                "word_count": word_count,
+                "job_id": str(job.get('_id', ''))  # Store job ID for later retrieval
             }
+            
+            # Only include full description if requested (for PDF generation)
+            if include_full_descriptions:
+                job_analysis["full_description"] = description
+            else:
+                # Include just a preview
+                job_analysis["description_preview"] = description[:200] + "..." if len(description) > 200 else description
             
             # Categorize
             if job_score >= 80:
@@ -1036,6 +1040,27 @@ Format as a natural script with clear sections. Be conversational but profession
         """Generate PDF for HR report with enhanced formatting"""
         if not report_data:
             return None
+        
+        # Fetch jobs with full descriptions for PDF
+        try:
+            from bson import ObjectId
+            district_name = report_data.get('district_name')
+            district_doc = self.db.districts.find_one(
+                {"name": {"$regex": f"^{re.escape(district_name)}$", "$options": "i"}}
+            )
+            
+            if district_doc:
+                district_id = district_doc.get('_id')
+                all_jobs = list(self.db.jobs.find({"districtId": district_id}))
+                all_jobs = self._convert_objectids_to_strings(all_jobs)
+                
+                # Regenerate quality report with full descriptions
+                quality_report_full = self._generate_quality_report(all_jobs, include_full_descriptions=True)
+                # Replace the quality report in report_data with the full version
+                report_data['quality_report'] = quality_report_full
+        except Exception as e:
+            print(f"Warning: Could not fetch full job descriptions for PDF: {str(e)}")
+            # Continue with preview descriptions if fetch fails
         
         buffer = BytesIO()
         doc = SimpleDocTemplate(
@@ -1518,6 +1543,43 @@ def download_hr_report_pdf():
         print(f"Error generating HR report PDF: {str(e)}")
         import traceback
         traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route('/api/get-job-description/<district_name>/<job_id>')
+def get_job_description(district_name, job_id):
+    """Get full job description for a specific job"""
+    try:
+        from bson import ObjectId
+        
+        # Find the district
+        district_doc = generator.db.districts.find_one(
+            {"name": {"$regex": f"^{re.escape(district_name)}$", "$options": "i"}}
+        )
+        
+        if not district_doc:
+            return jsonify({"error": "District not found"}), 404
+        
+        # Find the job
+        try:
+            job = generator.db.jobs.find_one({"_id": ObjectId(job_id)})
+        except:
+            # Try as string if ObjectId conversion fails
+            job = generator.db.jobs.find_one({"_id": job_id})
+        
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        
+        # Return full description
+        description = job.get('fullDescription', '') or job.get('description', '')
+        
+        return jsonify({
+            "success": True,
+            "job_id": job_id,
+            "full_description": description
+        })
+    
+    except Exception as e:
+        print(f"Error fetching job description: {str(e)}")
         return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 if __name__ == '__main__':
