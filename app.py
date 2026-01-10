@@ -637,20 +637,34 @@ Begin:"""
             if not district_data:
                 return {"error": "District not found"}
             
-            district_id_str = str(district_data.get('_id', ''))
-            
-            # Get all jobs for this district from schools collection
+            # Get district ID - it's already an ObjectId from get_district_basics
             from bson import ObjectId
-            district_id = ObjectId(district_id_str) if district_id_str else None
+            
+            # Get the original district document to access _id properly
+            district_doc = self.db.districts.find_one(
+                {"name": {"$regex": f"^{re.escape(district_name)}$", "$options": "i"}}
+            )
+            
+            if not district_doc:
+                return {"error": "District not found in database"}
+            
+            district_id = district_doc.get('_id')
             
             if not district_id:
                 return {"error": "Invalid district ID"}
             
+            print(f"Looking for schools with districtId: {district_id}")
+            
             # Get schools for this district
             schools = list(self.db.schools.find({"districtId": district_id}))
             
+            print(f"Found {len(schools)} schools for {district_name}")
+            
             if not schools:
-                return {"error": "No schools found for this district"}
+                return {
+                    "error": "No schools found",
+                    "message": f"No schools found for {district_name}. The district may not have data in the schools collection."
+                }
             
             # Aggregate all jobs from all schools
             all_jobs = []
@@ -660,6 +674,8 @@ Begin:"""
                     # Add school context
                     job['school_name'] = school.get('name', 'Unknown School')
                     all_jobs.append(job)
+            
+            print(f"Found {len(all_jobs)} total jobs across all schools")
             
             if not all_jobs:
                 return {
