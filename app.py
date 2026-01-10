@@ -628,7 +628,7 @@ Begin:"""
     def generate_school_hr_report(self, district_name):
         """
         Generate HR Administrator Report focused on job posting quality
-        Requires: District has jobs scraped and classified in MongoDB
+        Queries the jobs collection where jobs have districtId reference
         """
         
         try:
@@ -637,10 +637,9 @@ Begin:"""
             if not district_data:
                 return {"error": "District not found"}
             
-            # Get district ID - it's already an ObjectId from get_district_basics
             from bson import ObjectId
             
-            # Get the original district document to access _id properly
+            # Get the district document to get the ObjectId
             district_doc = self.db.districts.find_one(
                 {"name": {"$regex": f"^{re.escape(district_name)}$", "$options": "i"}}
             )
@@ -653,64 +652,24 @@ Begin:"""
             if not district_id:
                 return {"error": "Invalid district ID"}
             
-            print(f"Looking for schools with districtId: {district_id}")
-            print(f"District document keys: {list(district_doc.keys())}")
+            print(f"Looking for jobs with districtId: {district_id}")
             
-            # DIAGNOSTIC: Check if jobs are stored directly on the district
-            if 'jobs' in district_doc:
-                print(f"Found {len(district_doc.get('jobs', []))} jobs directly on district document")
+            # Query the jobs collection directly
+            all_jobs = list(self.db.jobs.find({"districtId": district_id}))
             
-            # DIAGNOSTIC: Check what collections exist
-            print(f"Available collections: {self.db.list_collection_names()}")
-            
-            # Try multiple approaches to find jobs
-            all_jobs = []
-            
-            # Approach 1: Check schools collection
-            schools = list(self.db.schools.find({"districtId": district_id}))
-            print(f"Found {len(schools)} schools in schools collection")
-            
-            if schools:
-                print(f"Sample school keys: {list(schools[0].keys()) if schools else 'none'}")
-                for school in schools:
-                    jobs = school.get('jobs', [])
-                    print(f"School '{school.get('name')}' has {len(jobs)} jobs")
-                    for job in jobs:
-                        job['school_name'] = school.get('name', 'Unknown School')
-                        all_jobs.append(job)
-            
-            # Approach 2: Check if there's a separate jobs collection
-            if self.db.jobs:
-                jobs_from_jobs_collection = list(self.db.jobs.find({"districtId": district_id}))
-                print(f"Found {len(jobs_from_jobs_collection)} jobs in jobs collection")
-                if jobs_from_jobs_collection:
-                    print(f"Sample job keys: {list(jobs_from_jobs_collection[0].keys()) if jobs_from_jobs_collection else 'none'}")
-                    all_jobs.extend(jobs_from_jobs_collection)
-            
-            # Approach 3: Check district document itself
-            if 'jobs' in district_doc:
-                district_jobs = district_doc.get('jobs', [])
-                print(f"Found {len(district_jobs)} jobs on district document")
-                if district_jobs:
-                    print(f"Sample job keys: {list(district_jobs[0].keys()) if district_jobs else 'none'}")
-                    for job in district_jobs:
-                        job['school_name'] = district_name
-                        all_jobs.append(job)
-            
-            print(f"Total jobs found across all sources: {len(all_jobs)}")
+            print(f"Found {len(all_jobs)} jobs for {district_name}")
             
             if not all_jobs:
-                # Return diagnostic info
                 return {
                     "error": "No jobs found",
-                    "message": f"Diagnostic info: Found {len(schools)} schools, checked 3 data sources. Jobs may be stored in a different location.",
-                    "debug": {
-                        "district_id": str(district_id),
-                        "schools_count": len(schools),
-                        "collections": self.db.list_collection_names(),
-                        "district_has_jobs_field": 'jobs' in district_doc
-                    }
+                    "message": f"No jobs found for {district_name} in the jobs collection. The district may not have scraped jobs yet."
                 }
+            
+            # Add some logging to see what we got
+            if all_jobs:
+                sample_job = all_jobs[0]
+                print(f"Sample job fields: {list(sample_job.keys())}")
+                print(f"Sample job has classification: {'aiClassification' in sample_job}")
             
             # Analyze jobs
             analysis = self._analyze_jobs_for_hr(all_jobs, district_data)
@@ -750,10 +709,12 @@ Begin:"""
         """Analyze jobs for HR administrator insights"""
         from collections import defaultdict
         
-        # Group by category
+        # Group by department (using aiClassification or department field)
         by_category = defaultdict(list)
         for job in jobs:
-            category = job.get('classification', {}).get('category', 'Unclassified')
+            # Try to get category from aiClassification first, then department
+            ai_classification = job.get('aiClassification', {})
+            category = ai_classification.get('category') or job.get('department') or 'Unclassified'
             by_category[category].append(job)
         
         # Calculate metrics by category
@@ -795,8 +756,13 @@ Begin:"""
         """Generate data for pie chart visualization"""
         from collections import Counter
         
-        # Count by category
-        categories = [job.get('classification', {}).get('category', 'Unclassified') for job in jobs]
+        # Count by category (from aiClassification or department)
+        categories = []
+        for job in jobs:
+            ai_classification = job.get('aiClassification', {})
+            category = ai_classification.get('category') or job.get('department') or 'Unclassified'
+            categories.append(category)
+        
         category_counts = Counter(categories)
         
         # Prepare pie chart data
@@ -828,7 +794,6 @@ Begin:"""
     
     def _compare_wages_to_nearby(self, district_data, jobs):
         """Compare wages to nearby districts"""
-        from collections import defaultdict
         
         # Get nearby districts
         nearby = list(self.db.districts.find({
@@ -847,15 +812,21 @@ Begin:"""
         }
         
         for job in jobs:
-            compensation = job.get('compensation', {})
-            wage_type = str(compensation.get('type', 'unknown')).lower()
-            amount = compensation.get('amount')
+            # Check wage field structure
+            wage = job.get('wage', {})
+            wage_type = str(wage.get('type', 'unknown')).lower()
+            
+            # Try amount from wage object first, then compensation
+            amount = wage.get('amount') or wage.get('value')
+            if not amount:
+                compensation = job.get('compensation', {})
+                amount = compensation.get('amount')
             
             if amount and isinstance(amount, (int, float)) and amount > 0:
                 wage_info = {
                     "amount": amount,
                     "title": job.get('title', 'Unknown'),
-                    "category": job.get('classification', {}).get('category', 'Unknown')
+                    "category": job.get('aiClassification', {}).get('category') or job.get('department', 'Unknown')
                 }
                 
                 if 'hour' in wage_type:
@@ -874,7 +845,6 @@ Begin:"""
     
     def _generate_quality_report(self, jobs):
         """Analyze job posting quality with specific callouts"""
-        import re
         
         quality_issues = []
         top_jobs = []
@@ -885,8 +855,9 @@ Begin:"""
             issues = []
             
             title = job.get('title', '')
-            description = job.get('description', '')
-            compensation = job.get('compensation', {})
+            description = job.get('fullDescription', '') or job.get('description', '')
+            wage = job.get('wage', {})
+            location = job.get('location', '')
             
             # Check for spelling errors
             common_errors = [
@@ -901,7 +872,8 @@ Begin:"""
                     job_score -= 10
             
             # Check for wage/salary information
-            if not compensation.get('amount'):
+            wage_amount = wage.get('amount') or wage.get('value')
+            if not wage_amount:
                 issues.append("Missing salary/wage information")
                 job_score -= 20
             else:
@@ -924,7 +896,7 @@ Begin:"""
                     job_score -= 5
             
             # Check for application deadline
-            if job.get('deadline'):
+            if job.get('closingDate'):
                 job_score += 10
             else:
                 issues.append("No application deadline specified")
@@ -939,8 +911,8 @@ Begin:"""
             
             job_analysis = {
                 "title": title,
-                "school": job.get('school_name', 'Unknown'),
-                "category": job.get('classification', {}).get('category', 'Unclassified'),
+                "school": location or 'Location not specified',
+                "category": job.get('aiClassification', {}).get('category') or job.get('department', 'Unclassified'),
                 "quality_score": job_score,
                 "issues": issues,
                 "posted_date": str(job.get('datePosted', 'Unknown'))
