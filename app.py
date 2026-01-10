@@ -654,33 +654,62 @@ Begin:"""
                 return {"error": "Invalid district ID"}
             
             print(f"Looking for schools with districtId: {district_id}")
+            print(f"District document keys: {list(district_doc.keys())}")
             
-            # Get schools for this district
-            schools = list(self.db.schools.find({"districtId": district_id}))
+            # DIAGNOSTIC: Check if jobs are stored directly on the district
+            if 'jobs' in district_doc:
+                print(f"Found {len(district_doc.get('jobs', []))} jobs directly on district document")
             
-            print(f"Found {len(schools)} schools for {district_name}")
+            # DIAGNOSTIC: Check what collections exist
+            print(f"Available collections: {self.db.list_collection_names()}")
             
-            if not schools:
-                return {
-                    "error": "No schools found",
-                    "message": f"No schools found for {district_name}. The district may not have data in the schools collection."
-                }
-            
-            # Aggregate all jobs from all schools
+            # Try multiple approaches to find jobs
             all_jobs = []
-            for school in schools:
-                jobs = school.get('jobs', [])
-                for job in jobs:
-                    # Add school context
-                    job['school_name'] = school.get('name', 'Unknown School')
-                    all_jobs.append(job)
             
-            print(f"Found {len(all_jobs)} total jobs across all schools")
+            # Approach 1: Check schools collection
+            schools = list(self.db.schools.find({"districtId": district_id}))
+            print(f"Found {len(schools)} schools in schools collection")
+            
+            if schools:
+                print(f"Sample school keys: {list(schools[0].keys()) if schools else 'none'}")
+                for school in schools:
+                    jobs = school.get('jobs', [])
+                    print(f"School '{school.get('name')}' has {len(jobs)} jobs")
+                    for job in jobs:
+                        job['school_name'] = school.get('name', 'Unknown School')
+                        all_jobs.append(job)
+            
+            # Approach 2: Check if there's a separate jobs collection
+            if self.db.jobs:
+                jobs_from_jobs_collection = list(self.db.jobs.find({"districtId": district_id}))
+                print(f"Found {len(jobs_from_jobs_collection)} jobs in jobs collection")
+                if jobs_from_jobs_collection:
+                    print(f"Sample job keys: {list(jobs_from_jobs_collection[0].keys()) if jobs_from_jobs_collection else 'none'}")
+                    all_jobs.extend(jobs_from_jobs_collection)
+            
+            # Approach 3: Check district document itself
+            if 'jobs' in district_doc:
+                district_jobs = district_doc.get('jobs', [])
+                print(f"Found {len(district_jobs)} jobs on district document")
+                if district_jobs:
+                    print(f"Sample job keys: {list(district_jobs[0].keys()) if district_jobs else 'none'}")
+                    for job in district_jobs:
+                        job['school_name'] = district_name
+                        all_jobs.append(job)
+            
+            print(f"Total jobs found across all sources: {len(all_jobs)}")
             
             if not all_jobs:
+                # Return diagnostic info
                 return {
                     "error": "No jobs found",
-                    "message": "This district has no scraped Applitrack jobs. Jobs must be scraped and classified first."
+                    "message": f"Diagnostic info: Found {len(schools)} schools, checked 3 data sources. Jobs may be stored in a different location.",
+                    "debug": {
+                        "district_id": str(district_id),
+                        "schools_count": len(schools),
+                        "collections": self.db.list_collection_names(),
+                        "district_has_jobs_field": 'jobs' in district_doc
+                    }
                 }
             
             # Analyze jobs
