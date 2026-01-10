@@ -811,12 +811,15 @@ Begin:"""
         }
     
     def _generate_chart_data(self, jobs):
-        """Generate data for pie chart visualization"""
+        """Generate data for pie chart visualization - sorted by count"""
         from collections import Counter
         
         # Count by category (from aiClassification, department, or positionType)
         categories = []
+        locations = []
+        
         for job in jobs:
+            # Category
             ai_classification = job.get('aiClassification', {})
             if isinstance(ai_classification, dict):
                 category = ai_classification.get('category')
@@ -828,35 +831,78 @@ Begin:"""
                 category = job.get('department') or job.get('positionType') or 'Unclassified'
             
             categories.append(category)
+            
+            # Location
+            location = job.get('location', 'Unknown Location')
+            if not location:
+                location = 'Unknown Location'
+            locations.append(location)
         
         category_counts = Counter(categories)
+        location_counts = Counter(locations)
         
-        # Prepare pie chart data
-        pie_data = {
-            "labels": list(category_counts.keys()),
-            "values": list(category_counts.values()),
-            "colors": self._get_category_colors(list(category_counts.keys()))
+        # Sort by count (highest to lowest)
+        sorted_categories = category_counts.most_common()
+        sorted_locations = location_counts.most_common()
+        
+        # Prepare category pie chart data (sorted)
+        category_pie_data = {
+            "labels": [item[0] for item in sorted_categories],
+            "values": [item[1] for item in sorted_categories],
+            "colors": self._get_category_colors([item[0] for item in sorted_categories])
+        }
+        
+        # Prepare location pie chart data (sorted)
+        location_pie_data = {
+            "labels": [item[0] for item in sorted_locations],
+            "values": [item[1] for item in sorted_locations],
+            "colors": self._get_location_colors([item[0] for item in sorted_locations])
         }
         
         return {
-            "pie_chart": pie_data
+            "category_pie_chart": category_pie_data,
+            "location_pie_chart": location_pie_data
         }
     
     def _get_category_colors(self, categories):
-        """Assign colors to job categories"""
+        """Assign colors to job categories with better variety"""
         color_map = {
-            "Teacher": "#116753",
-            "Support Staff": "#89BEF4",
-            "Administrator": "#D776C2",
-            "Specialist": "#FED46B",
-            "Paraprofessional": "#E8F0CA",
-            "Custodial": "#02223C",
-            "Transportation": "#4A90E2",
-            "Food Service": "#F39C12",
-            "Athletics": "#E74C3C",
-            "Unclassified": "#95A5A6"
+            "Teacher": "#2C5F2D",
+            "Support Staff": "#4A90E2",
+            "Administrator": "#8B5CF6",
+            "Specialist": "#F59E0B",
+            "Paraprofessional": "#10B981",
+            "Custodial": "#6366F1",
+            "Transportation": "#EC4899",
+            "Food Service": "#F97316",
+            "Athletics": "#EF4444",
+            "Unclassified": "#94A3B8"
         }
-        return [color_map.get(cat, "#95A5A6") for cat in categories]
+        
+        # Generate additional colors if needed
+        extra_colors = ["#06B6D4", "#84CC16", "#A855F7", "#F43F5E", "#14B8A6", 
+                       "#FB923C", "#3B82F6", "#22C55E", "#A78BFA", "#FCD34D"]
+        
+        result = []
+        for i, cat in enumerate(categories):
+            if cat in color_map:
+                result.append(color_map[cat])
+            else:
+                # Use extra colors cycling through them
+                result.append(extra_colors[i % len(extra_colors)])
+        
+        return result
+    
+    def _get_location_colors(self, locations):
+        """Assign colors to locations with good variety"""
+        # Use a different color palette for locations
+        colors = [
+            "#0EA5E9", "#8B5CF6", "#EC4899", "#F59E0B", "#10B981",
+            "#6366F1", "#F97316", "#14B8A6", "#A855F7", "#84CC16",
+            "#EF4444", "#06B6D4", "#FB923C", "#3B82F6", "#22C55E"
+        ]
+        
+        return [colors[i % len(colors)] for i in range(len(locations))]
     
     def _compare_wages_to_nearby(self, district_data, jobs):
         """Compare wages to nearby districts"""
