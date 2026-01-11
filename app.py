@@ -624,6 +624,577 @@ Begin:"""
                 "error_type": type(e).__name__
             }
     
+    
+    def _convert_objectids_to_strings(self, obj):
+        """Recursively convert all ObjectIds to strings for JSON serialization"""
+        from bson import ObjectId
+        
+        if isinstance(obj, ObjectId):
+            return str(obj)
+        elif isinstance(obj, dict):
+            return {key: self._convert_objectids_to_strings(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._convert_objectids_to_strings(item) for item in obj]
+        elif isinstance(obj, datetime):
+            return obj.isoformat()
+        else:
+            return obj
+    
+    def generate_school_hr_report(self, district_name):
+        """
+        Generate HR Administrator Report focused on job posting quality
+        Queries the jobs collection where jobs have districtId reference
+        """
+        
+        try:
+            # Get district data
+            district_data = self.get_district_basics(district_name)
+            if not district_data:
+                return {"error": "District not found"}
+            
+            from bson import ObjectId
+            
+            # Get the district document to get the ObjectId
+            district_doc = self.db.districts.find_one(
+                {"name": {"$regex": f"^{re.escape(district_name)}$", "$options": "i"}}
+            )
+            
+            if not district_doc:
+                return {"error": "District not found in database"}
+            
+            district_id = district_doc.get('_id')
+            
+            if not district_id:
+                return {"error": "Invalid district ID"}
+            
+            print(f"District: {district_name}")
+            print(f"District ID: {district_id}")
+            
+            # Query the jobs collection directly
+            all_jobs = list(self.db.jobs.find({"districtId": district_id}))
+            
+            print(f"Found {len(all_jobs)} jobs for {district_name}")
+            
+            if not all_jobs:
+                # Try alternative - maybe districtId is stored as string
+                all_jobs_str = list(self.db.jobs.find({"districtId": str(district_id)}))
+                print(f"Found {len(all_jobs_str)} jobs using string districtId")
+                
+                if all_jobs_str:
+                    all_jobs = all_jobs_str
+                else:
+                    return {
+                        "error": "No jobs found",
+                        "message": f"No jobs found for {district_name}. District may not have scraped jobs yet."
+                    }
+            
+            # CRITICAL: Convert ObjectIds IMMEDIATELY after fetching from MongoDB
+            print(f"Converting {len(all_jobs)} jobs ObjectIds to strings...")
+            all_jobs = self._convert_objectids_to_strings(all_jobs)
+            
+            # Count jobs with classifications
+            classified_count = sum(1 for job in all_jobs if job.get('aiClassification'))
+            print(f"Jobs with aiClassification: {classified_count}/{len(all_jobs)}")
+            
+            # Analyze jobs
+            print("Starting analysis...")
+            analysis = self._analyze_jobs_for_hr(all_jobs, district_data)
+            
+            # Generate visualizations data
+            print("Generating charts...")
+            charts = self._generate_chart_data(all_jobs)
+            
+            # Compare wages to nearby districts
+            print("Analyzing wages...")
+            wage_comparison = self._compare_wages_to_nearby(district_data, all_jobs)
+            
+            # Generate quality report
+            print("Generating quality report...")
+            quality_report = self._generate_quality_report(all_jobs)
+            
+            # Build result
+            result = {
+                "district_name": district_name,
+                "generated_at": datetime.now().isoformat(),
+                "report_type": "school_hr_admin",
+                "total_jobs": len(all_jobs),
+                "classified_jobs": classified_count,
+                "analysis": analysis,
+                "charts": charts,
+                "wage_comparison": wage_comparison,
+                "quality_report": quality_report,
+                "estimated_cost": 0.0
+            }
+            
+            print("Converting result to JSON-safe format...")
+            # Final conversion to ensure everything is serializable
+            result = self._convert_objectids_to_strings(result)
+            
+            print("HR report generation complete")
+            return result
+            
+        except Exception as e:
+            print(f"Error generating school HR report: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "error": True,
+                "error_message": str(e),
+                "error_type": type(e).__name__
+            }
+    
+    def _analyze_jobs_for_hr(self, jobs, district_data):
+        """Analyze jobs for HR administrator insights"""
+        from collections import defaultdict
+        
+        # Group by department (using aiClassification, department, or positionType)
+        by_category = defaultdict(list)
+        for job in jobs:
+            # Try multiple fields to get category
+            ai_classification = job.get('aiClassification', {})
+            if isinstance(ai_classification, dict):
+                category = ai_classification.get('category')
+            else:
+                category = None
+            
+            # Fallback to department or positionType
+            if not category:
+                category = job.get('department') or job.get('positionType') or 'Unclassified'
+            
+            by_category[category].append(job)
+        
+        # Calculate metrics by category
+        category_metrics = {}
+        for category, cat_jobs in by_category.items():
+            # Calculate average days open
+            days_open = []
+            for job in cat_jobs:
+                posted = job.get('datePosted')
+                if posted:
+                    try:
+                        if isinstance(posted, str):
+                            posted_date = datetime.fromisoformat(posted.replace('Z', '+00:00'))
+                        else:
+                            posted_date = posted
+                        
+                        if posted_date.tzinfo:
+                            days = (datetime.now(posted_date.tzinfo) - posted_date).days
+                        else:
+                            days = (datetime.now() - posted_date).days
+                        days_open.append(days)
+                    except:
+                        pass
+            
+            avg_days = sum(days_open) / len(days_open) if days_open else 0
+            
+            # Calculate average word count for descriptions
+            word_counts = []
+            for job in cat_jobs:
+                description = job.get('fullDescription', '') or job.get('description', '')
+                if description:
+                    # Count words (split by whitespace)
+                    words = len(description.split())
+                    word_counts.append(words)
+            
+            avg_word_count = sum(word_counts) / len(word_counts) if word_counts else 0
+            
+            category_metrics[category] = {
+                "count": len(cat_jobs),
+                "avg_days_open": round(avg_days, 1),
+                "avg_word_count": round(avg_word_count, 0),
+                "jobs": cat_jobs
+            }
+        
+        return {
+            "by_category": category_metrics,
+            "total_categories": len(category_metrics)
+        }
+    
+    def _generate_chart_data(self, jobs):
+        """Generate data for pie chart visualization - sorted by count"""
+        from collections import Counter
+        
+        # Count by category (from aiClassification, department, or positionType)
+        categories = []
+        locations = []
+        
+        for job in jobs:
+            # Category
+            ai_classification = job.get('aiClassification', {})
+            if isinstance(ai_classification, dict):
+                category = ai_classification.get('category')
+            else:
+                category = None
+            
+            # Fallback to department or positionType
+            if not category:
+                category = job.get('department') or job.get('positionType') or 'Unclassified'
+            
+            categories.append(category)
+            
+            # Location
+            location = job.get('location', 'Unknown Location')
+            if not location:
+                location = 'Unknown Location'
+            locations.append(location)
+        
+        category_counts = Counter(categories)
+        location_counts = Counter(locations)
+        
+        # Sort by count (highest to lowest)
+        sorted_categories = category_counts.most_common()
+        sorted_locations = location_counts.most_common()
+        
+        # Prepare category pie chart data (sorted)
+        category_pie_data = {
+            "labels": [item[0] for item in sorted_categories],
+            "values": [item[1] for item in sorted_categories],
+            "colors": self._get_category_colors([item[0] for item in sorted_categories])
+        }
+        
+        # Prepare location pie chart data (sorted)
+        location_pie_data = {
+            "labels": [item[0] for item in sorted_locations],
+            "values": [item[1] for item in sorted_locations],
+            "colors": self._get_location_colors([item[0] for item in sorted_locations])
+        }
+        
+        return {
+            "pie_chart": category_pie_data,  # Backwards compatibility
+            "category_pie_chart": category_pie_data,
+            "location_pie_chart": location_pie_data
+        }
+    
+    def _get_category_colors(self, categories):
+        """Assign colors to job categories with better variety"""
+        color_map = {
+            "Teacher": "#2C5F2D",
+            "Support Staff": "#4A90E2",
+            "Administrator": "#8B5CF6",
+            "Specialist": "#F59E0B",
+            "Paraprofessional": "#10B981",
+            "Custodial": "#6366F1",
+            "Transportation": "#EC4899",
+            "Food Service": "#F97316",
+            "Athletics": "#EF4444",
+            "Unclassified": "#94A3B8"
+        }
+        
+        # Generate additional colors if needed
+        extra_colors = ["#06B6D4", "#84CC16", "#A855F7", "#F43F5E", "#14B8A6", 
+                       "#FB923C", "#3B82F6", "#22C55E", "#A78BFA", "#FCD34D"]
+        
+        result = []
+        for i, cat in enumerate(categories):
+            if cat in color_map:
+                result.append(color_map[cat])
+            else:
+                # Use extra colors cycling through them
+                result.append(extra_colors[i % len(extra_colors)])
+        
+        return result
+    
+    def _get_location_colors(self, locations):
+        """Assign colors to locations with good variety"""
+        # Use a different color palette for locations
+        colors = [
+            "#0EA5E9", "#8B5CF6", "#EC4899", "#F59E0B", "#10B981",
+            "#6366F1", "#F97316", "#14B8A6", "#A855F7", "#84CC16",
+            "#EF4444", "#06B6D4", "#FB923C", "#3B82F6", "#22C55E"
+        ]
+        
+        return [colors[i % len(colors)] for i in range(len(locations))]
+    
+    def _compare_wages_to_nearby(self, district_data, jobs):
+        """Compare wages to nearby districts"""
+        
+        # Get nearby districts
+        nearby = list(self.db.districts.find({
+            "$or": [
+                {"county": district_data.get('county')},
+                {"state": district_data.get('state')}
+            ],
+            "name": {"$ne": district_data['name']}
+        }).limit(10))
+        
+        # Collect wages by type from this district
+        district_wages = {
+            "hourly": [],
+            "salary": [],
+            "stipend": []
+        }
+        
+        for job in jobs:
+            # Check wage field structure
+            wage = job.get('wage', {})
+            wage_type = str(wage.get('type', 'unknown')).lower()
+            
+            # Try amount from wage object first, then compensation
+            amount = wage.get('amount') or wage.get('value')
+            if not amount:
+                compensation = job.get('compensation', {})
+                amount = compensation.get('amount')
+            
+            if amount and isinstance(amount, (int, float)) and amount > 0:
+                wage_info = {
+                    "amount": amount,
+                    "title": job.get('title', 'Unknown'),
+                    "category": job.get('aiClassification', {}).get('category') or job.get('department', 'Unknown')
+                }
+                
+                if 'hour' in wage_type:
+                    district_wages['hourly'].append(wage_info)
+                elif 'salary' in wage_type or 'annual' in wage_type:
+                    district_wages['salary'].append(wage_info)
+                elif 'stipend' in wage_type:
+                    district_wages['stipend'].append(wage_info)
+        
+        return {
+            "district_wages": district_wages,
+            "nearby_districts": [d.get('name') for d in nearby],
+            "comparison_available": False,
+            "note": "Wage comparison requires nearby districts to have scraped jobs"
+        }
+    
+    def _generate_quality_report(self, jobs):
+        """Analyze job posting quality with specific callouts"""
+        
+        quality_issues = []
+        top_jobs = []
+        opportunities = []
+        
+        for job in jobs:
+            job_score = 0
+            issues = []
+            
+            title = job.get('title', '')
+            description = job.get('fullDescription', '') or job.get('description', '')
+            wage = job.get('wage', {})
+            location = job.get('location', '')
+            
+            # Check for spelling errors
+            common_errors = [
+                ('techer', 'teacher'), ('adminstrator', 'administrator'),
+                ('assitant', 'assistant'), ('pricipal', 'principal'),
+                ('secratary', 'secretary'), ('libraian', 'librarian')
+            ]
+            
+            for wrong, right in common_errors:
+                if wrong in description.lower() or wrong in title.lower():
+                    issues.append(f"Spelling: '{wrong}' should be '{right}'")
+                    job_score -= 10
+            
+            # Check for wage/salary information
+            wage_amount = wage.get('amount') or wage.get('value')
+            if not wage_amount:
+                issues.append("Missing salary/wage information")
+                job_score -= 20
+            else:
+                job_score += 20
+            
+            # Check for job description length
+            if len(description) < 100:
+                issues.append("Description too short (< 100 characters)")
+                job_score -= 15
+            elif len(description) > 200:
+                job_score += 15
+            
+            # Check for key information
+            required_fields = ['qualifications', 'requirements', 'responsibilities']
+            for field in required_fields:
+                if field.lower() in description.lower():
+                    job_score += 10
+                else:
+                    issues.append(f"Missing section: {field}")
+                    job_score -= 5
+            
+            # Check for application deadline
+            if job.get('closingDate'):
+                job_score += 10
+            else:
+                issues.append("No application deadline specified")
+                job_score -= 5
+            
+            # Check for contact information
+            if 'contact' in description.lower() or 'email' in description.lower():
+                job_score += 5
+            
+            # Normalize score to 0-100
+            job_score = max(0, min(100, 50 + job_score))
+            
+            job_analysis = {
+                "title": title,
+                "school": location or 'Location not specified',
+                "category": job.get('aiClassification', {}).get('category') or job.get('department', 'Unclassified'),
+                "quality_score": job_score,
+                "issues": issues,
+                "posted_date": str(job.get('datePosted', 'Unknown'))
+            }
+            
+            # Categorize
+            if job_score >= 80:
+                top_jobs.append(job_analysis)
+            elif job_score < 50:
+                opportunities.append(job_analysis)
+            
+            if issues:
+                quality_issues.append(job_analysis)
+        
+        # Calculate overall quality score
+        all_scores = [job.get('quality_score', 0) for job in quality_issues + top_jobs + opportunities]
+        overall_score = sum(all_scores) / len(all_scores) if all_scores else 0
+        
+        return {
+            "overall_quality_score": round(overall_score, 1),
+            "total_jobs_analyzed": len(jobs),
+            "jobs_with_issues": len(quality_issues),
+            "top_performing_jobs": sorted(top_jobs, key=lambda x: x['quality_score'], reverse=True)[:5],
+            "improvement_opportunities": sorted(opportunities, key=lambda x: x['quality_score'])[:10],
+            "quality_issues": quality_issues
+        }
+    
+    def generate_hr_report_pdf(self, report_data):
+        """Generate PDF for HR report"""
+        if not report_data:
+            return None
+        
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+        
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=HexColor('#116753'),
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            textColor=HexColor('#116753'),
+            spaceAfter=12,
+            spaceBefore=20,
+            fontName='Helvetica-Bold'
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=14
+        )
+        
+        story = []
+        
+        # Title
+        story.append(Paragraph(f"HR Administrator Report", title_style))
+        story.append(Paragraph(f"{report_data['district_name']}", title_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Metadata
+        meta_text = f"<b>Generated:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br/>"
+        meta_text += f"<b>Total Jobs Analyzed:</b> {report_data.get('total_jobs', 0)}"
+        story.append(Paragraph(meta_text, normal_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Executive Summary
+        story.append(Paragraph("Executive Summary", heading_style))
+        quality = report_data.get('quality_report', {})
+        analysis = report_data.get('analysis', {})
+        
+        summary_text = f"""
+        This report analyzes {report_data.get('total_jobs', 0)} job postings across 
+        {analysis.get('total_categories', 0)} categories. The overall quality score is 
+        {quality.get('overall_quality_score', 0)}/100.
+        """
+        story.append(Paragraph(summary_text, normal_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Jobs by Category Table
+        story.append(PageBreak())
+        story.append(Paragraph("Jobs by Category", heading_style))
+        
+        by_category = analysis.get('by_category', {})
+        if by_category:
+            table_data = [['Category', 'Count', 'Avg Days Open', 'Avg Word Count']]
+            
+            for category, metrics in by_category.items():
+                table_data.append([
+                    category,
+                    str(metrics.get('count', 0)),
+                    str(metrics.get('avg_days_open', 0)),
+                    str(int(metrics.get('avg_word_count', 0)))
+                ])
+            
+            t = Table(table_data, colWidths=[2.5*inch, 1*inch, 1.2*inch, 1.3*inch])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#116753')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), HexColor('#F0F0F0')),
+                ('GRID', (0, 0), (-1, -1), 1, black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, HexColor('#F9F9F9')]),
+            ]))
+            
+            story.append(t)
+            story.append(Spacer(1, 0.3*inch))
+        
+        # Top Performing Jobs
+        story.append(PageBreak())
+        story.append(Paragraph("Top Performing Jobs", heading_style))
+        
+        top_jobs = quality.get('top_performing_jobs', [])
+        if top_jobs:
+            for i, job in enumerate(top_jobs, 1):
+                job_text = f"<b>{i}. {job['title']}</b><br/>"
+                job_text += f"Category: {job['category']}<br/>"
+                job_text += f"Location: {job['school']}<br/>"
+                job_text += f"Quality Score: {job['quality_score']}/100"
+                story.append(Paragraph(job_text, normal_style))
+                story.append(Spacer(1, 0.15*inch))
+        
+        # Improvement Opportunities
+        story.append(PageBreak())
+        story.append(Paragraph("Improvement Opportunities", heading_style))
+        
+        opportunities = quality.get('improvement_opportunities', [])
+        if opportunities:
+            for i, job in enumerate(opportunities, 1):
+                job_text = f"<b>{i}. {job['title']}</b><br/>"
+                job_text += f"Category: {job['category']}<br/>"
+                job_text += f"Location: {job['school']}<br/>"
+                job_text += f"Quality Score: {job['quality_score']}/100<br/>"
+                if job.get('issues'):
+                    job_text += f"Issues: {', '.join(job['issues'])}"
+                story.append(Paragraph(job_text, normal_style))
+                story.append(Spacer(1, 0.15*inch))
+        
+        # Build PDF
+        doc.build(story)
+        pdf_data = buffer.getvalue()
+        buffer.close()
+        
+        return pdf_data
+    
     def generate_pdf(self, report):
         """Generate PDF with improved formatting"""
         if not report:
@@ -955,3 +1526,68 @@ def cost_stats():
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+
+@app.route('/api/generate-hr-report', methods=['POST'])
+def generate_hr_report_endpoint():
+    """Generate HR Administrator Report for job posting analysis"""
+    data = request.json
+    district_name = data.get('district_name')
+    
+    if not district_name:
+        return jsonify({"error": "District name required"}), 400
+    
+    try:
+        print(f"Generating HR report for {district_name}")
+        result = generator.generate_school_hr_report(district_name)
+        
+        if result.get('error'):
+            return jsonify({
+                "error": result.get('error'),
+                "message": result.get('message', result.get('error_message', 'Unknown error'))
+            }), 404 if result.get('error') == 'District not found' else 500
+        
+        print(f"HR report complete for {district_name}")
+        
+        return jsonify({
+            "success": True,
+            "report": result
+        })
+    
+    except Exception as e:
+        print(f"Error generating HR report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route('/api/download-hr-report-pdf', methods=['POST'])
+def download_hr_report_pdf():
+    """Generate and download HR report as PDF"""
+    data = request.json
+    report_data = data.get('report_data')
+    
+    if not report_data:
+        return jsonify({"error": "Report data required"}), 400
+    
+    try:
+        print(f"Generating HR report PDF for {report_data.get('district_name', 'Unknown')}")
+        pdf_data = generator.generate_hr_report_pdf(report_data)
+        
+        if not pdf_data:
+            return jsonify({"error": "PDF generation failed"}), 500
+        
+        # Create filename
+        district_name = report_data.get('district_name', 'Unknown').replace(' ', '_')
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"HR_Report_{district_name}_{timestamp}.pdf"
+        
+        return Response(
+            pdf_data,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'attachment;filename={filename}'}
+        )
+    
+    except Exception as e:
+        print(f"Error generating HR report PDF: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
