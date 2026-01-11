@@ -13,11 +13,11 @@ from pymongo import MongoClient
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.enums import TA_LEFT, TA_CENTER
-from reportlab.lib.colors import HexColor
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from reportlab.lib.colors import HexColor, black, white
 import re
 from io import BytesIO
 
