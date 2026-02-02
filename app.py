@@ -13,11 +13,11 @@ from pymongo import MongoClient
 from anthropic import Anthropic
 from dotenv import load_dotenv
 from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.lib.enums import TA_LEFT, TA_CENTER
-from reportlab.lib.colors import HexColor
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
+from reportlab.lib.colors import HexColor, black, white
 import re
 from io import BytesIO
 
@@ -1041,6 +1041,149 @@ Begin:"""
             "improvement_opportunities": sorted(opportunities, key=lambda x: x['quality_score'])[:10],
             "quality_issues": quality_issues
         }
+    
+    def generate_hr_report_pdf(self, report_data):
+        """Generate PDF for HR report"""
+        if not report_data:
+            return None
+        
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=72
+        )
+        
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=HexColor('#116753'),
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=16,
+            textColor=HexColor('#116753'),
+            spaceAfter=12,
+            spaceBefore=20,
+            fontName='Helvetica-Bold'
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=14
+        )
+        
+        story = []
+        
+        # Title
+        story.append(Paragraph(f"HR Administrator Report", title_style))
+        story.append(Paragraph(f"{report_data['district_name']}", title_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Metadata
+        meta_text = f"<b>Generated:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br/>"
+        meta_text += f"<b>Total Jobs Analyzed:</b> {report_data.get('total_jobs', 0)}"
+        story.append(Paragraph(meta_text, normal_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Executive Summary
+        story.append(Paragraph("Executive Summary", heading_style))
+        quality = report_data.get('quality_report', {})
+        analysis = report_data.get('analysis', {})
+        
+        summary_text = f"""
+        This report analyzes {report_data.get('total_jobs', 0)} job postings across 
+        {analysis.get('total_categories', 0)} categories. The overall quality score is 
+        {quality.get('overall_quality_score', 0)}/100.
+        """
+        story.append(Paragraph(summary_text, normal_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Jobs by Category Table
+        story.append(PageBreak())
+        story.append(Paragraph("Jobs by Category", heading_style))
+        
+        by_category = analysis.get('by_category', {})
+        if by_category:
+            table_data = [['Category', 'Count', 'Avg Days Open', 'Avg Word Count']]
+            
+            for category, metrics in by_category.items():
+                table_data.append([
+                    category,
+                    str(metrics.get('count', 0)),
+                    str(metrics.get('avg_days_open', 0)),
+                    str(int(metrics.get('avg_word_count', 0)))
+                ])
+            
+            t = Table(table_data, colWidths=[2.5*inch, 1*inch, 1.2*inch, 1.3*inch])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), HexColor('#116753')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), HexColor('#F0F0F0')),
+                ('GRID', (0, 0), (-1, -1), 1, black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, HexColor('#F9F9F9')]),
+            ]))
+            
+            story.append(t)
+            story.append(Spacer(1, 0.3*inch))
+        
+        # Top Performing Jobs
+        story.append(PageBreak())
+        story.append(Paragraph("Top Performing Jobs", heading_style))
+        
+        top_jobs = quality.get('top_performing_jobs', [])
+        if top_jobs:
+            for i, job in enumerate(top_jobs, 1):
+                job_text = f"<b>{i}. {job['title']}</b><br/>"
+                job_text += f"Category: {job['category']}<br/>"
+                job_text += f"Location: {job['school']}<br/>"
+                job_text += f"Quality Score: {job['quality_score']}/100"
+                story.append(Paragraph(job_text, normal_style))
+                story.append(Spacer(1, 0.15*inch))
+        
+        # Improvement Opportunities
+        story.append(PageBreak())
+        story.append(Paragraph("Improvement Opportunities", heading_style))
+        
+        opportunities = quality.get('improvement_opportunities', [])
+        if opportunities:
+            for i, job in enumerate(opportunities, 1):
+                job_text = f"<b>{i}. {job['title']}</b><br/>"
+                job_text += f"Category: {job['category']}<br/>"
+                job_text += f"Location: {job['school']}<br/>"
+                job_text += f"Quality Score: {job['quality_score']}/100<br/>"
+                if job.get('issues'):
+                    job_text += f"Issues: {', '.join(job['issues'])}"
+                story.append(Paragraph(job_text, normal_style))
+                story.append(Spacer(1, 0.15*inch))
+        
+        # Build PDF
+        doc.build(story)
+        pdf_data = buffer.getvalue()
+        buffer.close()
+        
+        return pdf_data
+    
     def generate_pdf(self, report):
         """Generate PDF with improved formatting"""
         if not report:
@@ -1401,6 +1544,39 @@ def generate_hr_report_endpoint():
     
     except Exception as e:
         print(f"Error generating HR report: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
+
+@app.route('/api/download-hr-report-pdf', methods=['POST'])
+def download_hr_report_pdf():
+    """Generate and download HR report as PDF"""
+    data = request.json
+    report_data = data.get('report_data')
+    
+    if not report_data:
+        return jsonify({"error": "Report data required"}), 400
+    
+    try:
+        print(f"Generating HR report PDF for {report_data.get('district_name', 'Unknown')}")
+        pdf_data = generator.generate_hr_report_pdf(report_data)
+        
+        if not pdf_data:
+            return jsonify({"error": "PDF generation failed"}), 500
+        
+        # Create filename
+        district_name = report_data.get('district_name', 'Unknown').replace(' ', '_')
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"HR_Report_{district_name}_{timestamp}.pdf"
+        
+        return Response(
+            pdf_data,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'attachment;filename={filename}'}
+        )
+    
+    except Exception as e:
+        print(f"Error generating HR report PDF: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({"error": f"Server error: {str(e)}"}), 500
