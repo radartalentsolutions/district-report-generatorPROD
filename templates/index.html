@@ -1066,6 +1066,36 @@
             border-radius: 6px;
             margin: 10px;
         }
+        
+        /* Print Styles for PDF Export */
+        @media print {
+            body {
+                background: white;
+            }
+            
+            .navbar, .search-filters, .btn-toggle, button {
+                display: none !important;
+            }
+            
+            .hr-report-section {
+                border: none;
+                box-shadow: none;
+            }
+            
+            .demo-card {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            .job-quality-card {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            
+            .chart-container canvas {
+                max-height: 300px;
+            }
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -1553,39 +1583,32 @@
             else if (score >= 65) scoreClass = 'score-good';
             else if (score >= 50) scoreClass = 'score-fair';
             
-            // Store report data globally for PDF download
-            window.currentHRReport = report;
-            
-            // Calculate average word count across all categories
-            const avgWordCount = report.analysis.by_category ? 
-                Math.round(Object.values(report.analysis.by_category).reduce((sum, cat) => sum + (cat.avg_word_count || 0), 0) / Object.keys(report.analysis.by_category).length) : 0;
-            
             let html = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="font-family: 'Space Grotesk', sans-serif; color: #02223C;">HR Report Results</h2>
-                    <button class="btn btn-generate" onclick="downloadHRReportPDF()" style="background: linear-gradient(135deg, #116753 0%, #02223C 100%);">
-                        📄 Download PDF Report
-                    </button>
-                </div>
-                
                 <div class="metric-grid">
                     <div class="metric-card">
                         <div class="metric-value">${report.total_jobs}</div>
-                        <div class="metric-label">Total Jobs</div>
+                        <div class="metric-label">Total Open Jobs</div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-value quality-score ${scoreClass}">${score}</div>
                         <div class="metric-label">Overall Quality Score</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">${avgWordCount}</div>
+                        <div class="metric-value">${Math.round(report.quality_report.avg_word_count)}</div>
                         <div class="metric-label">Average Word Count</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">${report.analysis.total_categories}</div>
-                        <div class="metric-label">Job Categories</div>
+                        <div class="metric-value">${report.jobs_with_wage_data}</div>
+                        <div class="metric-label">Jobs with Wage Data</div>
                     </div>
                 </div>
+                
+                ${report.jobs_without_wage_data > 0 ? `
+                    <div style="background: #FED46B; border: 2px solid #116753; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                        <strong>⚠️ Note:</strong> ${report.jobs_without_wage_data} jobs do not have wage data scraped yet and are excluded from quality scoring.
+                        These jobs may have been recently posted or need additional scraping.
+                    </div>
+                ` : ''}
                 
                 <div class="demo-card">
                     <div class="demo-card-header">
@@ -1602,18 +1625,6 @@
                 <div class="demo-card">
                     <div class="demo-card-header">
                         <span class="demo-number">2</span>
-                        <h3>Open Positions by Location</h3>
-                    </div>
-                    <div class="demo-card-body">
-                        <div class="chart-container">
-                            <canvas id="locationPieChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="demo-card">
-                    <div class="demo-card-header">
-                        <span class="demo-number">3</span>
                         <h3>Average Days Open by Category</h3>
                     </div>
                     <div class="demo-card-body">
@@ -1623,10 +1634,23 @@
                 
                 <div class="demo-card">
                     <div class="demo-card-header">
+                        <span class="demo-number">3</span>
+                        <h3>Open Positions by Location</h3>
+                    </div>
+                    <div class="demo-card-body">
+                        ${generateLocationTable(report.analysis.by_location)}
+                    </div>
+                </div>
+                
+                <div class="demo-card">
+                    <div class="demo-card-header">
                         <span class="demo-number">4</span>
                         <h3>Top Performing Job Postings</h3>
                     </div>
                     <div class="demo-card-body">
+                        <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                            Based on ${report.jobs_with_wage_data} jobs with complete wage data
+                        </p>
                         ${generateJobCards(report.quality_report.top_performing_jobs, 'excellent')}
                     </div>
                 </div>
@@ -1637,36 +1661,100 @@
                         <h3>Improvement Opportunities</h3>
                     </div>
                     <div class="demo-card-body">
+                        <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                            Jobs with wage data that could be improved
+                        </p>
                         ${generateJobCards(report.quality_report.improvement_opportunities, 'poor')}
                     </div>
+                </div>
+                
+                ${report.quality_report.unscraped_jobs_count > 0 ? `
+                    <div class="demo-card">
+                        <div class="demo-card-header">
+                            <span class="demo-number">6</span>
+                            <h3>Jobs Pending Wage Data (${report.quality_report.unscraped_jobs_count})</h3>
+                        </div>
+                        <div class="demo-card-body">
+                            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                                These jobs are excluded from quality scoring because wage information hasn't been scraped yet.
+                            </p>
+                            ${generateUnscrapedJobsList(report.quality_report.unscraped_jobs)}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                <div style="text-align: center; margin-top: 30px;">
+                    <button class="cta-button" onclick="downloadHRReportPDF('${report.district_name}')">
+                        📄 Download PDF Report
+                    </button>
                 </div>
             `;
             
             contentDiv.innerHTML = html;
             renderPieChart(report.charts.pie_chart);
             
-            // Render location pie chart if available
-            if (report.charts.location_pie_chart) {
-                renderLocationPieChart(report.charts.location_pie_chart);
+            // Store report for PDF generation
+            window.currentHRReport = report;
+        }
+        
+        function generateUnscrapedJobsList(jobs) {
+            if (!jobs || jobs.length === 0) {
+                return '<p style="color: #666;">No unscraped jobs.</p>';
             }
+            
+            return `
+                <div style="display: grid; gap: 10px;">
+                    ${jobs.map(job => `
+                        <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #FED46B;">
+                            <strong>${job.title}</strong><br>
+                            <span style="color: #666; font-size: 13px;">${job.location} • ${job.category}</span>
+                        </div>
+                    `).join('')}
+                    ${jobs.length >= 10 ? '<p style="color: #999; font-size: 13px; margin-top: 10px;">Showing first 10 jobs</p>' : ''}
+                </div>
+            `;
         }
         
         function generateDaysOpenTable(byCategory) {
+            // Convert to array and sort by avg_days_open (highest to lowest)
+            const sortedCategories = Object.entries(byCategory).sort((a, b) => b[1].avg_days_open - a[1].avg_days_open);
+            
             let html = '<table style="width: 100%; border-collapse: collapse;">';
             html += '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #116753;">';
             html += '<th style="padding: 12px; text-align: left;">Category</th>';
             html += '<th style="padding: 12px; text-align: center;">Count</th>';
             html += '<th style="padding: 12px; text-align: center;">Avg Days Open</th>';
-            html += '<th style="padding: 12px; text-align: center;">Avg Word Count</th>';
             html += '</tr></thead><tbody>';
             
-            for (const [category, data] of Object.entries(byCategory)) {
+            for (const [category, data] of sortedCategories) {
                 const daysClass = data.avg_days_open > 60 ? 'color: #ef4444; font-weight: 700;' : '';
                 html += `<tr style="border-bottom: 1px solid #e0e0e0;">`;
                 html += `<td style="padding: 12px;"><strong>${category}</strong></td>`;
                 html += `<td style="padding: 12px; text-align: center;">${data.count}</td>`;
                 html += `<td style="padding: 12px; text-align: center; ${daysClass}">${data.avg_days_open} days</td>`;
-                html += `<td style="padding: 12px; text-align: center;">${Math.round(data.avg_word_count || 0)} words</td>`;
+                html += `</tr>`;
+            }
+            
+            html += '</tbody></table>';
+            return html;
+        }
+        
+        function generateLocationTable(byLocation) {
+            if (!byLocation || Object.keys(byLocation).length === 0) {
+                return '<p style="color: #666;">No location data available.</p>';
+            }
+            
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #116753;">';
+            html += '<th style="padding: 12px; text-align: left;">Location</th>';
+            html += '<th style="padding: 12px; text-align: center;">Open Positions</th>';
+            html += '</tr></thead><tbody>';
+            
+            // byLocation is already sorted by count (from backend)
+            for (const [location, count] of Object.entries(byLocation)) {
+                html += `<tr style="border-bottom: 1px solid #e0e0e0;">`;
+                html += `<td style="padding: 12px;"><strong>${location}</strong></td>`;
+                html += `<td style="padding: 12px; text-align: center;">${count}</td>`;
                 html += `</tr>`;
             }
             
@@ -1679,97 +1767,76 @@
                 return '<p style="color: #666; font-style: italic;">No jobs in this category.</p>';
             }
             
-            return jobs.map(job => {
+            return jobs.map((job, index) => {
                 const scoreClass = job.quality_score >= 80 ? 'score-excellent' : 
                                   job.quality_score >= 65 ? 'score-good' :
                                   job.quality_score >= 50 ? 'score-fair' : 'score-poor';
+                
+                const cardId = `job-${type}-${index}`;
                 
                 return `
                     <div class="job-quality-card ${type}">
                         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                             <div>
                                 <strong style="font-size: 16px; color: #02223C;">${job.title}</strong><br>
-                                <span style="color: #666; font-size: 14px;">${job.school} • ${job.category}</span>
+                                <span style="color: #666; font-size: 14px;">${job.school} • ${job.category}</span><br>
+                                <span style="color: #999; font-size: 12px;">Word Count: ${job.word_count || 'N/A'}</span>
                             </div>
                             <span class="quality-score ${scoreClass}" style="font-size: 14px; padding: 6px 12px;">
                                 ${job.quality_score}
                             </span>
                         </div>
-                        ${job.issues && job.issues.length > 0 ? `
-                            <div style="margin-top: 10px;">
-                                <strong style="font-size: 14px; color: #02223C;">Issues Found:</strong><br>
-                                ${job.issues.map(issue => {
-                                    const isCritical = issue.toLowerCase().includes('missing salary') || 
-                                                     issue.toLowerCase().includes('spelling');
-                                    return `<span class="issue-tag ${isCritical ? 'critical' : ''}">${issue}</span>`;
-                                }).join('')}
+                        
+                        ${job.reasons && job.reasons.length > 0 ? `
+                            <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                <strong style="font-size: 13px; color: #02223C;">Why this score:</strong>
+                                ${job.reasons.map(reason => `<div style="margin: 4px 0; font-size: 13px;">${reason}</div>`).join('')}
                             </div>
-                        ` : '<div style="color: #116753; font-weight: 600; margin-top: 10px;">✓ No issues found</div>'}
+                        ` : ''}
+                        
+                        ${job.full_description ? `
+                            <button 
+                                onclick="toggleJobDescription('${cardId}')" 
+                                style="background: #116753; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-top: 10px;"
+                            >
+                                📄 View Full Description
+                            </button>
+                            <div id="${cardId}" style="display: none; margin-top: 10px; padding: 15px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; max-height: 300px; overflow-y: auto;">
+                                <strong style="display: block; margin-bottom: 10px; color: #02223C;">Full Job Description:</strong>
+                                <div style="white-space: pre-wrap; font-size: 13px; line-height: 1.6; color: #333;">${job.full_description}</div>
+                            </div>
+                        ` : ''}
                     </div>
                 `;
             }).join('');
         }
         
-        function generateWageAnalysis(wageComparison) {
-            const wages = wageComparison.district_wages;
-            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">';
-            
-            if (wages.hourly.length > 0) {
-                const avgHourly = wages.hourly.reduce((sum, w) => sum + w.amount, 0) / wages.hourly.length;
-                html += `
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #89BEF4;">
-                        <h4 style="margin: 0 0 15px 0; color: #02223C;">Hourly Positions</h4>
-                        <div style="font-size: 24px; font-weight: 700; color: #116753; margin-bottom: 10px;">
-                            $${avgHourly.toFixed(2)}/hr
-                        </div>
-                        <div style="font-size: 14px; color: #666;">
-                            Average across ${wages.hourly.length} positions
-                        </div>
-                    </div>
-                `;
+        function toggleJobDescription(cardId) {
+            const element = document.getElementById(cardId);
+            if (element.style.display === 'none') {
+                element.style.display = 'block';
+            } else {
+                element.style.display = 'none';
             }
+        }
+        
+        
+        function downloadHRReportPDF(districtName) {
+            // Use browser print function with current styling
+            const originalTitle = document.title;
+            document.title = `HR Report - ${districtName}`;
             
-            if (wages.salary.length > 0) {
-                const avgSalary = wages.salary.reduce((sum, w) => sum + w.amount, 0) / wages.salary.length;
-                html += `
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #116753;">
-                        <h4 style="margin: 0 0 15px 0; color: #02223C;">Salary Positions</h4>
-                        <div style="font-size: 24px; font-weight: 700; color: #116753; margin-bottom: 10px;">
-                            $${avgSalary.toLocaleString()}
-                        </div>
-                        <div style="font-size: 14px; color: #666;">
-                            Average across ${wages.salary.length} positions
-                        </div>
-                    </div>
-                `;
-            }
+            // Hide buttons and interactive elements for PDF
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(btn => btn.style.display = 'none');
             
-            if (wages.stipend.length > 0) {
-                const avgStipend = wages.stipend.reduce((sum, w) => sum + w.amount, 0) / wages.stipend.length;
-                html += `
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #FED46B;">
-                        <h4 style="margin: 0 0 15px 0; color: #02223C;">Stipend Positions</h4>
-                        <div style="font-size: 24px; font-weight: 700; color: #116753; margin-bottom: 10px;">
-                            $${avgStipend.toLocaleString()}
-                        </div>
-                        <div style="font-size: 14px; color: #666;">
-                            Average across ${wages.stipend.length} positions
-                        </div>
-                    </div>
-                `;
-            }
+            window.print();
             
-            html += '</div>';
-            
-            if (!wageComparison.comparison_available) {
-                html += `
-                    <div style="margin-top: 20px; padding: 15px; background: #FED46B; border-radius: 8px; border: 2px solid #116753;">
-                        <strong>Note:</strong> Comparison to nearby districts requires those districts to have scraped job data.
-                    </div>
-                `;
-            }
-            
-            return html;
+            // Restore after print
+            setTimeout(() => {
+                document.title = originalTitle;
+                buttons.forEach(btn => btn.style.display = '');
+            }, 1000);
         }
         
         function renderPieChart(chartData) {
@@ -1818,109 +1885,6 @@
                     }
                 }
             });
-        }
-        
-        let currentLocationChart = null;
-        
-        function renderLocationPieChart(chartData) {
-            const ctx = document.getElementById('locationPieChart');
-            
-            if (!ctx) {
-                console.error('Location pie chart canvas not found');
-                return;
-            }
-            
-            if (currentLocationChart) {
-                currentLocationChart.destroy();
-            }
-            
-            currentLocationChart = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: chartData.labels,
-                    datasets: [{
-                        data: chartData.values,
-                        backgroundColor: chartData.colors,
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: {
-                                font: {
-                                    size: 14,
-                                    family: "'Space Grotesk', sans-serif"
-                                },
-                                padding: 15
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return `${label}: ${value} (${percentage}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        async function downloadHRReportPDF() {
-            if (!window.currentHRReport) {
-                alert('No report data available. Please generate a report first.');
-                return;
-            }
-            
-            try {
-                const btn = event.target;
-                btn.disabled = true;
-                btn.innerHTML = '⏳ Generating PDF...';
-                
-                const response = await fetch('/api/download-hr-report-pdf', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        report_data: window.currentHRReport
-                    })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('PDF generation failed');
-                }
-                
-                // Download the PDF
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `HR_Report_${window.currentHRReport.district_name.replace(/ /g, '_')}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                window.URL.revokeObjectURL(url);
-                
-                btn.disabled = false;
-                btn.innerHTML = '📄 Download PDF Report';
-                
-            } catch (error) {
-                console.error('Error downloading PDF:', error);
-                alert('Error generating PDF. Please try again.');
-                const btn = event.target;
-                btn.disabled = false;
-                btn.innerHTML = '📄 Download PDF Report';
-            }
         }
         
         function openContactModal(districtName) {

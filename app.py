@@ -764,10 +764,12 @@ Begin:"""
     
     def _analyze_jobs_for_hr(self, jobs, district_data):
         """Analyze jobs for HR administrator insights"""
-        from collections import defaultdict
+        from collections import defaultdict, Counter
         
         # Group by department (using aiClassification, department, or positionType)
         by_category = defaultdict(list)
+        by_location = defaultdict(list)
+        
         for job in jobs:
             # Try multiple fields to get category
             ai_classification = job.get('aiClassification', {})
@@ -781,6 +783,10 @@ Begin:"""
                 category = job.get('department') or job.get('positionType') or 'Unclassified'
             
             by_category[category].append(job)
+            
+            # Group by location
+            location = job.get('location', 'Location Not Specified')
+            by_location[location].append(job)
         
         # Calculate metrics by category
         category_metrics = {}
@@ -812,9 +818,15 @@ Begin:"""
                 "jobs": cat_jobs
             }
         
+        # Calculate location metrics (sorted by count)
+        location_counts = {loc: len(jobs) for loc, jobs in by_location.items()}
+        sorted_locations = sorted(location_counts.items(), key=lambda x: x[1], reverse=True)
+        
         return {
             "by_category": category_metrics,
-            "total_categories": len(category_metrics)
+            "total_categories": len(category_metrics),
+            "by_location": dict(sorted_locations),
+            "total_locations": len(by_location)
         }
     
     def _generate_chart_data(self, jobs):
@@ -951,6 +963,7 @@ Begin:"""
         quality_issues = []
         top_jobs = []
         opportunities = []
+        all_job_analyses = []  # Track ALL analyzed jobs
         
         # Calculate average word count
         word_counts = []
@@ -1046,6 +1059,9 @@ Begin:"""
                 "full_description": description  # Include for expansion
             }
             
+            # Add to ALL jobs list
+            all_job_analyses.append(job_analysis)
+            
             # Categorize
             if job_score >= 80:
                 top_jobs.append(job_analysis)
@@ -1055,8 +1071,8 @@ Begin:"""
             if issues:
                 quality_issues.append(job_analysis)
         
-        # Calculate overall quality score
-        all_scores = [job.get('quality_score', 0) for job in quality_issues + top_jobs + opportunities]
+        # Calculate overall quality score from ALL jobs
+        all_scores = [job['quality_score'] for job in all_job_analyses]
         overall_score = sum(all_scores) / len(all_scores) if all_scores else 0
         
         # Calculate average word count
