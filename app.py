@@ -838,11 +838,14 @@ Begin:"""
         
         category_counts = Counter(categories)
         
-        # Prepare pie chart data
+        # Sort by count (highest to lowest)
+        sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+        
+        # Prepare pie chart data with sorted values
         pie_data = {
-            "labels": list(category_counts.keys()),
-            "values": list(category_counts.values()),
-            "colors": self._get_category_colors(list(category_counts.keys()))
+            "labels": [cat for cat, count in sorted_categories],
+            "values": [count for cat, count in sorted_categories],
+            "colors": self._get_category_colors([cat for cat, count in sorted_categories])
         }
         
         return {
@@ -850,7 +853,8 @@ Begin:"""
         }
     
     def _get_category_colors(self, categories):
-        """Assign colors to job categories"""
+        """Assign colors to job categories - generate unique color for each"""
+        # Predefined colors for common categories
         color_map = {
             "Teacher": "#116753",
             "Support Staff": "#89BEF4",
@@ -861,9 +865,34 @@ Begin:"""
             "Transportation": "#4A90E2",
             "Food Service": "#F39C12",
             "Athletics": "#E74C3C",
+            "Nutrition Services": "#27AE60",
+            "Technology": "#9B59B6",
+            "Maintenance": "#34495E",
+            "Security": "#E67E22",
+            "Health Services": "#1ABC9C",
+            "Library": "#8E44AD",
             "Unclassified": "#95A5A6"
         }
-        return [color_map.get(cat, "#95A5A6") for cat in categories]
+        
+        # Extended color palette for unknown categories
+        extra_colors = [
+            "#3498DB", "#E91E63", "#00BCD4", "#FF5722", "#009688",
+            "#795548", "#607D8B", "#FF9800", "#CDDC39", "#FFC107",
+            "#4CAF50", "#2196F3", "#9C27B0", "#673AB7", "#F44336"
+        ]
+        
+        colors = []
+        extra_color_index = 0
+        
+        for cat in categories:
+            if cat in color_map:
+                colors.append(color_map[cat])
+            else:
+                # Use extra colors for categories not in map
+                colors.append(extra_colors[extra_color_index % len(extra_colors)])
+                extra_color_index += 1
+        
+        return colors
     
     def _compare_wages_to_nearby(self, district_data, jobs):
         """Compare wages to nearby districts"""
