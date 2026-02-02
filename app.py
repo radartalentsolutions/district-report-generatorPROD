@@ -696,13 +696,6 @@ Begin:"""
             print(f"Converting {len(all_jobs_raw)} jobs ObjectIds to strings...")
             all_jobs = self._convert_objectids_to_strings(all_jobs_raw)
             
-            # Separate jobs with wage data vs without
-            jobs_with_wages = [job for job in all_jobs if job.get('wage', {}).get('amount') or job.get('wage', {}).get('value')]
-            jobs_without_wages = [job for job in all_jobs if not (job.get('wage', {}).get('amount') or job.get('wage', {}).get('value'))]
-            
-            print(f"Jobs with wage data: {len(jobs_with_wages)}")
-            print(f"Jobs without wage data (unscraped): {len(jobs_without_wages)}")
-            
             # Count jobs with classifications
             classified_count = sum(1 for job in all_jobs if job.get('aiClassification'))
             print(f"Jobs with aiClassification: {classified_count}/{len(all_jobs)}")
@@ -715,20 +708,9 @@ Begin:"""
             print("Generating charts...")
             charts = self._generate_chart_data(all_jobs)
             
-            # Generate quality report ONLY on jobs with wage data
-            print("Generating quality report (jobs with wage data only)...")
-            quality_report = self._generate_quality_report(jobs_with_wages)
-            
-            # Add unscraped jobs info
-            quality_report['unscraped_jobs_count'] = len(jobs_without_wages)
-            quality_report['unscraped_jobs'] = [
-                {
-                    "title": job.get('title', 'Unknown'),
-                    "location": job.get('location', 'Unknown'),
-                    "category": job.get('department') or job.get('positionType', 'Unclassified')
-                }
-                for job in jobs_without_wages[:10]  # Show first 10
-            ]
+            # Generate quality report on ALL jobs
+            print("Generating quality report on all jobs...")
+            quality_report = self._generate_quality_report(all_jobs)
             
             # Build result
             result = {
@@ -736,8 +718,6 @@ Begin:"""
                 "generated_at": datetime.now().isoformat(),
                 "report_type": "school_hr_admin",
                 "total_jobs": len(all_jobs),
-                "jobs_with_wage_data": len(jobs_with_wages),
-                "jobs_without_wage_data": len(jobs_without_wages),
                 "classified_jobs": classified_count,
                 "analysis": analysis,
                 "charts": charts,
@@ -764,12 +744,10 @@ Begin:"""
     
     def _analyze_jobs_for_hr(self, jobs, district_data):
         """Analyze jobs for HR administrator insights"""
-        from collections import defaultdict, Counter
+        from collections import defaultdict
         
         # Group by department (using aiClassification, department, or positionType)
         by_category = defaultdict(list)
-        by_location = defaultdict(list)
-        
         for job in jobs:
             # Try multiple fields to get category
             ai_classification = job.get('aiClassification', {})
@@ -783,10 +761,6 @@ Begin:"""
                 category = job.get('department') or job.get('positionType') or 'Unclassified'
             
             by_category[category].append(job)
-            
-            # Group by location
-            location = job.get('location', 'Location Not Specified')
-            by_location[location].append(job)
         
         # Calculate metrics by category
         category_metrics = {}
@@ -818,15 +792,9 @@ Begin:"""
                 "jobs": cat_jobs
             }
         
-        # Calculate location metrics (sorted by count)
-        location_counts = {loc: len(jobs) for loc, jobs in by_location.items()}
-        sorted_locations = sorted(location_counts.items(), key=lambda x: x[1], reverse=True)
-        
         return {
             "by_category": category_metrics,
-            "total_categories": len(category_metrics),
-            "by_location": dict(sorted_locations),
-            "total_locations": len(by_location)
+            "total_categories": len(category_metrics)
         }
     
     def _generate_chart_data(self, jobs):
@@ -835,7 +803,10 @@ Begin:"""
         
         # Count by category (from aiClassification, department, or positionType)
         categories = []
+        locations = []
+        
         for job in jobs:
+            # Category
             ai_classification = job.get('aiClassification', {})
             if isinstance(ai_classification, dict):
                 category = ai_classification.get('category')
@@ -847,26 +818,51 @@ Begin:"""
                 category = job.get('department') or job.get('positionType') or 'Unclassified'
             
             categories.append(category)
+            
+            # Location
+            location = job.get('location', 'Location Not Specified')
+            locations.append(location)
         
         category_counts = Counter(categories)
+        location_counts = Counter(locations)
         
-        # Sort by count (highest to lowest)
+        # Sort both by count (highest to lowest)
         sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+        sorted_locations = sorted(location_counts.items(), key=lambda x: x[1], reverse=True)
         
-        # Prepare pie chart data with sorted values
-        pie_data = {
+        # Prepare category pie chart data
+        category_chart = {
             "labels": [cat for cat, count in sorted_categories],
             "values": [count for cat, count in sorted_categories],
             "colors": self._get_category_colors([cat for cat, count in sorted_categories])
         }
         
-        return {
-            "pie_chart": pie_data
+        # Prepare location pie chart data
+        location_chart = {
+            "labels": [loc for loc, count in sorted_locations],
+            "values": [count for loc, count in sorted_locations],
+            "colors": self._get_location_colors([loc for loc, count in sorted_locations])
         }
+        
+        return {
+            "category_chart": category_chart,
+            "location_chart": location_chart
+        }
+    
+    def _get_location_colors(self, locations):
+        """Generate distinct colors for locations"""
+        colors_palette = [
+            "#116753", "#89BEF4", "#D776C2", "#FED46B", "#E8F0CA",
+            "#02223C", "#4A90E2", "#F39C12", "#E74C3C", "#27AE60",
+            "#9B59B6", "#34495E", "#E67E22", "#1ABC9C", "#8E44AD",
+            "#3498DB", "#E91E63", "#00BCD4", "#FF5722", "#009688",
+            "#795548", "#607D8B", "#FF9800", "#CDDC39", "#FFC107",
+            "#4CAF50", "#2196F3", "#9C27B0", "#673AB7", "#F44336"
+        ]
+        return [colors_palette[i % len(colors_palette)] for i in range(len(locations))]
     
     def _get_category_colors(self, categories):
         """Assign colors to job categories - generate unique color for each"""
-        # Predefined colors for common categories
         color_map = {
             "Teacher": "#116753",
             "Support Staff": "#89BEF4",
@@ -963,7 +959,7 @@ Begin:"""
         quality_issues = []
         top_jobs = []
         opportunities = []
-        all_job_analyses = []  # Track ALL analyzed jobs
+        all_job_analyses = []  # Track ALL jobs
         
         # Calculate average word count
         word_counts = []
@@ -995,15 +991,15 @@ Begin:"""
                     reasons.append(f"❌ Contains spelling error: '{wrong}'")
                     job_score -= 10
             
-            # Check for wage/salary information
+            # Check for wage/salary information (don't heavily penalize)
             wage_amount = wage.get('amount') or wage.get('value')
             if not wage_amount:
                 issues.append("Missing salary/wage information")
                 reasons.append("❌ No salary/wage information provided")
-                job_score -= 20
+                job_score -= 5  # Small penalty instead of -20
             else:
                 reasons.append("✓ Includes salary/wage information")
-                job_score += 20
+                job_score += 10
             
             # Check for job description length
             if len(description) < 100:

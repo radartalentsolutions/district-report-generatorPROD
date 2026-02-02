@@ -1529,7 +1529,8 @@
         }
         
         // HR Report Functions
-        let currentHRChart = null;
+        let currentCategoryChart = null;
+        let currentLocationChart = null;
         
         function showHRReport(districtName) {
             document.getElementById('hrReportTitle').innerText = `📊 HR Administrator Report for ${districtName}`;
@@ -1542,9 +1543,13 @@
         
         function hideHRReport() {
             document.getElementById('hrReportSection').style.display = 'none';
-            if (currentHRChart) {
-                currentHRChart.destroy();
-                currentHRChart = null;
+            if (currentCategoryChart) {
+                currentCategoryChart.destroy();
+                currentCategoryChart = null;
+            }
+            if (currentLocationChart) {
+                currentLocationChart.destroy();
+                currentLocationChart = null;
             }
         }
         
@@ -1598,17 +1603,10 @@
                         <div class="metric-label">Average Word Count</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">${report.jobs_with_wage_data}</div>
-                        <div class="metric-label">Jobs with Wage Data</div>
+                        <div class="metric-value">${report.analysis.total_categories}</div>
+                        <div class="metric-label">Job Categories</div>
                     </div>
                 </div>
-                
-                ${report.jobs_without_wage_data > 0 ? `
-                    <div style="background: #FED46B; border: 2px solid #116753; border-radius: 8px; padding: 15px; margin: 20px 0;">
-                        <strong>⚠️ Note:</strong> ${report.jobs_without_wage_data} jobs do not have wage data scraped yet and are excluded from quality scoring.
-                        These jobs may have been recently posted or need additional scraping.
-                    </div>
-                ` : ''}
                 
                 <div class="demo-card">
                     <div class="demo-card-header">
@@ -1625,6 +1623,18 @@
                 <div class="demo-card">
                     <div class="demo-card-header">
                         <span class="demo-number">2</span>
+                        <h3>Open Positions by Location</h3>
+                    </div>
+                    <div class="demo-card-body">
+                        <div class="chart-container">
+                            <canvas id="locationPieChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="demo-card">
+                    <div class="demo-card-header">
+                        <span class="demo-number">3</span>
                         <h3>Average Days Open by Category</h3>
                     </div>
                     <div class="demo-card-body">
@@ -1634,23 +1644,10 @@
                 
                 <div class="demo-card">
                     <div class="demo-card-header">
-                        <span class="demo-number">3</span>
-                        <h3>Open Positions by Location</h3>
-                    </div>
-                    <div class="demo-card-body">
-                        ${generateLocationTable(report.analysis.by_location)}
-                    </div>
-                </div>
-                
-                <div class="demo-card">
-                    <div class="demo-card-header">
                         <span class="demo-number">4</span>
                         <h3>Top Performing Job Postings</h3>
                     </div>
                     <div class="demo-card-body">
-                        <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
-                            Based on ${report.jobs_with_wage_data} jobs with complete wage data
-                        </p>
                         ${generateJobCards(report.quality_report.top_performing_jobs, 'excellent')}
                     </div>
                 </div>
@@ -1661,27 +1658,9 @@
                         <h3>Improvement Opportunities</h3>
                     </div>
                     <div class="demo-card-body">
-                        <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
-                            Jobs with wage data that could be improved
-                        </p>
                         ${generateJobCards(report.quality_report.improvement_opportunities, 'poor')}
                     </div>
                 </div>
-                
-                ${report.quality_report.unscraped_jobs_count > 0 ? `
-                    <div class="demo-card">
-                        <div class="demo-card-header">
-                            <span class="demo-number">6</span>
-                            <h3>Jobs Pending Wage Data (${report.quality_report.unscraped_jobs_count})</h3>
-                        </div>
-                        <div class="demo-card-body">
-                            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
-                                These jobs are excluded from quality scoring because wage information hasn't been scraped yet.
-                            </p>
-                            ${generateUnscrapedJobsList(report.quality_report.unscraped_jobs)}
-                        </div>
-                    </div>
-                ` : ''}
                 
                 <div style="text-align: center; margin-top: 30px;">
                     <button class="cta-button" onclick="downloadHRReportPDF('${report.district_name}')">
@@ -1691,29 +1670,13 @@
             `;
             
             contentDiv.innerHTML = html;
-            renderPieChart(report.charts.pie_chart);
+            renderCategoryChart(report.charts.category_chart);
+            renderLocationChart(report.charts.location_chart);
             
             // Store report for PDF generation
             window.currentHRReport = report;
         }
         
-        function generateUnscrapedJobsList(jobs) {
-            if (!jobs || jobs.length === 0) {
-                return '<p style="color: #666;">No unscraped jobs.</p>';
-            }
-            
-            return `
-                <div style="display: grid; gap: 10px;">
-                    ${jobs.map(job => `
-                        <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #FED46B;">
-                            <strong>${job.title}</strong><br>
-                            <span style="color: #666; font-size: 13px;">${job.location} • ${job.category}</span>
-                        </div>
-                    `).join('')}
-                    ${jobs.length >= 10 ? '<p style="color: #999; font-size: 13px; margin-top: 10px;">Showing first 10 jobs</p>' : ''}
-                </div>
-            `;
-        }
         
         function generateDaysOpenTable(byCategory) {
             // Convert to array and sort by avg_days_open (highest to lowest)
@@ -1739,28 +1702,6 @@
             return html;
         }
         
-        function generateLocationTable(byLocation) {
-            if (!byLocation || Object.keys(byLocation).length === 0) {
-                return '<p style="color: #666;">No location data available.</p>';
-            }
-            
-            let html = '<table style="width: 100%; border-collapse: collapse;">';
-            html += '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #116753;">';
-            html += '<th style="padding: 12px; text-align: left;">Location</th>';
-            html += '<th style="padding: 12px; text-align: center;">Open Positions</th>';
-            html += '</tr></thead><tbody>';
-            
-            // byLocation is already sorted by count (from backend)
-            for (const [location, count] of Object.entries(byLocation)) {
-                html += `<tr style="border-bottom: 1px solid #e0e0e0;">`;
-                html += `<td style="padding: 12px;"><strong>${location}</strong></td>`;
-                html += `<td style="padding: 12px; text-align: center;">${count}</td>`;
-                html += `</tr>`;
-            }
-            
-            html += '</tbody></table>';
-            return html;
-        }
         
         function generateJobCards(jobs, type) {
             if (!jobs || jobs.length === 0) {
@@ -1839,14 +1780,62 @@
             }, 1000);
         }
         
-        function renderPieChart(chartData) {
+        function renderCategoryChart(chartData) {
             const ctx = document.getElementById('categoryPieChart');
             
-            if (currentHRChart) {
-                currentHRChart.destroy();
+            if (currentCategoryChart) {
+                currentCategoryChart.destroy();
             }
             
-            currentHRChart = new Chart(ctx, {
+            currentCategoryChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        data: chartData.values,
+                        backgroundColor: chartData.colors,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: {
+                                    size: 14,
+                                    family: "'Space Grotesk', sans-serif"
+                                },
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderLocationChart(chartData) {
+            const ctx = document.getElementById('locationPieChart');
+            
+            if (currentLocationChart) {
+                currentLocationChart.destroy();
+            }
+            
+            currentLocationChart = new Chart(ctx, {
                 type: 'pie',
                 data: {
                     labels: chartData.labels,
