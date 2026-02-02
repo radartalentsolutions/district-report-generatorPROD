@@ -670,33 +670,44 @@ Begin:"""
             print(f"District: {district_name}")
             print(f"District ID: {district_id}")
             
-            # Query the jobs collection directly
-            all_jobs = list(self.db.jobs.find({"districtId": district_id}))
+            # Query the jobs collection - ONLY OPEN/ACTIVE JOBS
+            all_jobs_raw = list(self.db.jobs.find({
+                "districtId": district_id,
+                "status": {"$ne": "closed"}  # Exclude closed jobs
+            }))
             
-            print(f"Found {len(all_jobs)} jobs for {district_name}")
+            print(f"Found {len(all_jobs_raw)} OPEN jobs for {district_name}")
             
-            if not all_jobs:
+            if not all_jobs_raw:
                 # Try alternative - maybe districtId is stored as string
-                all_jobs_str = list(self.db.jobs.find({"districtId": str(district_id)}))
-                print(f"Found {len(all_jobs_str)} jobs using string districtId")
+                all_jobs_raw = list(self.db.jobs.find({
+                    "districtId": str(district_id),
+                    "status": {"$ne": "closed"}
+                }))
+                print(f"Found {len(all_jobs_raw)} OPEN jobs using string districtId")
                 
-                if all_jobs_str:
-                    all_jobs = all_jobs_str
-                else:
+                if not all_jobs_raw:
                     return {
                         "error": "No jobs found",
-                        "message": f"No jobs found for {district_name}. District may not have scraped jobs yet."
+                        "message": f"No open jobs found for {district_name}. District may not have active job postings."
                     }
             
             # CRITICAL: Convert ObjectIds IMMEDIATELY after fetching from MongoDB
-            print(f"Converting {len(all_jobs)} jobs ObjectIds to strings...")
-            all_jobs = self._convert_objectids_to_strings(all_jobs)
+            print(f"Converting {len(all_jobs_raw)} jobs ObjectIds to strings...")
+            all_jobs = self._convert_objectids_to_strings(all_jobs_raw)
+            
+            # Separate jobs with wage data vs without
+            jobs_with_wages = [job for job in all_jobs if job.get('wage', {}).get('amount') or job.get('wage', {}).get('value')]
+            jobs_without_wages = [job for job in all_jobs if not (job.get('wage', {}).get('amount') or job.get('wage', {}).get('value'))]
+            
+            print(f"Jobs with wage data: {len(jobs_with_wages)}")
+            print(f"Jobs without wage data (unscraped): {len(jobs_without_wages)}")
             
             # Count jobs with classifications
             classified_count = sum(1 for job in all_jobs if job.get('aiClassification'))
             print(f"Jobs with aiClassification: {classified_count}/{len(all_jobs)}")
             
-            # Analyze jobs
+            # Analyze all jobs (for category breakdown and days open)
             print("Starting analysis...")
             analysis = self._analyze_jobs_for_hr(all_jobs, district_data)
             
@@ -704,13 +715,20 @@ Begin:"""
             print("Generating charts...")
             charts = self._generate_chart_data(all_jobs)
             
-            # Compare wages to nearby districts
-            print("Analyzing wages...")
-            wage_comparison = self._compare_wages_to_nearby(district_data, all_jobs)
+            # Generate quality report ONLY on jobs with wage data
+            print("Generating quality report (jobs with wage data only)...")
+            quality_report = self._generate_quality_report(jobs_with_wages)
             
-            # Generate quality report
-            print("Generating quality report...")
-            quality_report = self._generate_quality_report(all_jobs)
+            # Add unscraped jobs info
+            quality_report['unscraped_jobs_count'] = len(jobs_without_wages)
+            quality_report['unscraped_jobs'] = [
+                {
+                    "title": job.get('title', 'Unknown'),
+                    "location": job.get('location', 'Unknown'),
+                    "category": job.get('department') or job.get('positionType', 'Unclassified')
+                }
+                for job in jobs_without_wages[:10]  # Show first 10
+            ]
             
             # Build result
             result = {
@@ -718,10 +736,11 @@ Begin:"""
                 "generated_at": datetime.now().isoformat(),
                 "report_type": "school_hr_admin",
                 "total_jobs": len(all_jobs),
+                "jobs_with_wage_data": len(jobs_with_wages),
+                "jobs_without_wage_data": len(jobs_without_wages),
                 "classified_jobs": classified_count,
                 "analysis": analysis,
                 "charts": charts,
-                "wage_comparison": wage_comparison,
                 "quality_report": quality_report,
                 "estimated_cost": 0.0
             }
@@ -787,21 +806,9 @@ Begin:"""
             
             avg_days = sum(days_open) / len(days_open) if days_open else 0
             
-            # Calculate average word count for descriptions
-            word_counts = []
-            for job in cat_jobs:
-                description = job.get('fullDescription', '') or job.get('description', '')
-                if description:
-                    # Count words (split by whitespace)
-                    words = len(description.split())
-                    word_counts.append(words)
-            
-            avg_word_count = sum(word_counts) / len(word_counts) if word_counts else 0
-            
             category_metrics[category] = {
                 "count": len(cat_jobs),
                 "avg_days_open": round(avg_days, 1),
-                "avg_word_count": round(avg_word_count, 0),
                 "jobs": cat_jobs
             }
         
@@ -811,15 +818,12 @@ Begin:"""
         }
     
     def _generate_chart_data(self, jobs):
-        """Generate data for pie chart visualization - sorted by count"""
+        """Generate data for pie chart visualization"""
         from collections import Counter
         
         # Count by category (from aiClassification, department, or positionType)
         categories = []
-        locations = []
-        
         for job in jobs:
-            # Category
             ai_classification = job.get('aiClassification', {})
             if isinstance(ai_classification, dict):
                 category = ai_classification.get('category')
@@ -831,79 +835,35 @@ Begin:"""
                 category = job.get('department') or job.get('positionType') or 'Unclassified'
             
             categories.append(category)
-            
-            # Location
-            location = job.get('location', 'Unknown Location')
-            if not location:
-                location = 'Unknown Location'
-            locations.append(location)
         
         category_counts = Counter(categories)
-        location_counts = Counter(locations)
         
-        # Sort by count (highest to lowest)
-        sorted_categories = category_counts.most_common()
-        sorted_locations = location_counts.most_common()
-        
-        # Prepare category pie chart data (sorted)
-        category_pie_data = {
-            "labels": [item[0] for item in sorted_categories],
-            "values": [item[1] for item in sorted_categories],
-            "colors": self._get_category_colors([item[0] for item in sorted_categories])
-        }
-        
-        # Prepare location pie chart data (sorted)
-        location_pie_data = {
-            "labels": [item[0] for item in sorted_locations],
-            "values": [item[1] for item in sorted_locations],
-            "colors": self._get_location_colors([item[0] for item in sorted_locations])
+        # Prepare pie chart data
+        pie_data = {
+            "labels": list(category_counts.keys()),
+            "values": list(category_counts.values()),
+            "colors": self._get_category_colors(list(category_counts.keys()))
         }
         
         return {
-            "pie_chart": category_pie_data,  # Backwards compatibility
-            "category_pie_chart": category_pie_data,
-            "location_pie_chart": location_pie_data
+            "pie_chart": pie_data
         }
     
     def _get_category_colors(self, categories):
-        """Assign colors to job categories with better variety"""
+        """Assign colors to job categories"""
         color_map = {
-            "Teacher": "#2C5F2D",
-            "Support Staff": "#4A90E2",
-            "Administrator": "#8B5CF6",
-            "Specialist": "#F59E0B",
-            "Paraprofessional": "#10B981",
-            "Custodial": "#6366F1",
-            "Transportation": "#EC4899",
-            "Food Service": "#F97316",
-            "Athletics": "#EF4444",
-            "Unclassified": "#94A3B8"
+            "Teacher": "#116753",
+            "Support Staff": "#89BEF4",
+            "Administrator": "#D776C2",
+            "Specialist": "#FED46B",
+            "Paraprofessional": "#E8F0CA",
+            "Custodial": "#02223C",
+            "Transportation": "#4A90E2",
+            "Food Service": "#F39C12",
+            "Athletics": "#E74C3C",
+            "Unclassified": "#95A5A6"
         }
-        
-        # Generate additional colors if needed
-        extra_colors = ["#06B6D4", "#84CC16", "#A855F7", "#F43F5E", "#14B8A6", 
-                       "#FB923C", "#3B82F6", "#22C55E", "#A78BFA", "#FCD34D"]
-        
-        result = []
-        for i, cat in enumerate(categories):
-            if cat in color_map:
-                result.append(color_map[cat])
-            else:
-                # Use extra colors cycling through them
-                result.append(extra_colors[i % len(extra_colors)])
-        
-        return result
-    
-    def _get_location_colors(self, locations):
-        """Assign colors to locations with good variety"""
-        # Use a different color palette for locations
-        colors = [
-            "#0EA5E9", "#8B5CF6", "#EC4899", "#F59E0B", "#10B981",
-            "#6366F1", "#F97316", "#14B8A6", "#A855F7", "#84CC16",
-            "#EF4444", "#06B6D4", "#FB923C", "#3B82F6", "#22C55E"
-        ]
-        
-        return [colors[i % len(colors)] for i in range(len(locations))]
+        return [color_map.get(cat, "#95A5A6") for cat in categories]
     
     def _compare_wages_to_nearby(self, district_data, jobs):
         """Compare wages to nearby districts"""
@@ -963,14 +923,22 @@ Begin:"""
         top_jobs = []
         opportunities = []
         
+        # Calculate average word count
+        word_counts = []
+        
         for job in jobs:
             job_score = 0
             issues = []
+            reasons = []  # Track why job is good/bad
             
             title = job.get('title', '')
             description = job.get('fullDescription', '') or job.get('description', '')
             wage = job.get('wage', {})
             location = job.get('location', '')
+            
+            # Count words
+            word_count = len(description.split())
+            word_counts.append(word_count)
             
             # Check for spelling errors
             common_errors = [
@@ -982,42 +950,57 @@ Begin:"""
             for wrong, right in common_errors:
                 if wrong in description.lower() or wrong in title.lower():
                     issues.append(f"Spelling: '{wrong}' should be '{right}'")
+                    reasons.append(f"❌ Contains spelling error: '{wrong}'")
                     job_score -= 10
             
             # Check for wage/salary information
             wage_amount = wage.get('amount') or wage.get('value')
             if not wage_amount:
                 issues.append("Missing salary/wage information")
+                reasons.append("❌ No salary/wage information provided")
                 job_score -= 20
             else:
+                reasons.append("✓ Includes salary/wage information")
                 job_score += 20
             
             # Check for job description length
             if len(description) < 100:
                 issues.append("Description too short (< 100 characters)")
+                reasons.append(f"❌ Very short description ({len(description)} chars)")
                 job_score -= 15
             elif len(description) > 200:
+                reasons.append(f"✓ Comprehensive description ({word_count} words)")
                 job_score += 15
             
             # Check for key information
             required_fields = ['qualifications', 'requirements', 'responsibilities']
+            found_fields = []
             for field in required_fields:
                 if field.lower() in description.lower():
                     job_score += 10
+                    found_fields.append(field)
                 else:
                     issues.append(f"Missing section: {field}")
-                    job_score -= 5
+            
+            if found_fields:
+                reasons.append(f"✓ Includes key sections: {', '.join(found_fields)}")
+            if len(found_fields) < len(required_fields):
+                missing = [f for f in required_fields if f not in found_fields]
+                reasons.append(f"❌ Missing: {', '.join(missing)}")
             
             # Check for application deadline
             if job.get('closingDate'):
                 job_score += 10
+                reasons.append("✓ Has application deadline")
             else:
                 issues.append("No application deadline specified")
+                reasons.append("❌ No application deadline")
                 job_score -= 5
             
             # Check for contact information
             if 'contact' in description.lower() or 'email' in description.lower():
                 job_score += 5
+                reasons.append("✓ Includes contact information")
             
             # Normalize score to 0-100
             job_score = max(0, min(100, 50 + job_score))
@@ -1028,7 +1011,10 @@ Begin:"""
                 "category": job.get('aiClassification', {}).get('category') or job.get('department', 'Unclassified'),
                 "quality_score": job_score,
                 "issues": issues,
-                "posted_date": str(job.get('datePosted', 'Unknown'))
+                "reasons": reasons,
+                "posted_date": str(job.get('datePosted', 'Unknown')),
+                "word_count": word_count,
+                "full_description": description  # Include for expansion
             }
             
             # Categorize
@@ -1044,11 +1030,14 @@ Begin:"""
         all_scores = [job.get('quality_score', 0) for job in quality_issues + top_jobs + opportunities]
         overall_score = sum(all_scores) / len(all_scores) if all_scores else 0
         
+        # Calculate average word count
+        avg_word_count = sum(word_counts) / len(word_counts) if word_counts else 0
+        
         return {
             "overall_quality_score": round(overall_score, 1),
             "total_jobs_analyzed": len(jobs),
-            "jobs_with_issues": len(quality_issues),
-            "top_performing_jobs": sorted(top_jobs, key=lambda x: x['quality_score'], reverse=True)[:5],
+            "avg_word_count": round(avg_word_count, 1),
+            "top_performing_jobs": sorted(top_jobs, key=lambda x: x['quality_score'], reverse=True)[:10],
             "improvement_opportunities": sorted(opportunities, key=lambda x: x['quality_score'])[:10],
             "quality_issues": quality_issues
         }
