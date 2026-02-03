@@ -1553,10 +1553,7 @@ def cost_stats():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
-
+    
 @app.route('/api/generate-hr-report', methods=['POST'])
 def generate_hr_report_endpoint():
     """Generate HR Administrator Report for job posting analysis"""
@@ -1576,11 +1573,37 @@ def generate_hr_report_endpoint():
                 "message": result.get('message', result.get('error_message', 'Unknown error'))
             }), 404 if result.get('error') == 'District not found' else 500
         
-        print(f"HR report complete for {district_name}")
+        print(f"HR report complete, generating PDF...")
+        
+        # Generate PDF
+        pdf_data = generator.generate_hr_report_pdf(result)
+        
+        if not pdf_data:
+            print("PDF generation failed")
+            return jsonify({"error": "PDF generation failed"}), 500
+        
+        # Save to MongoDB
+        district_name_clean = district_name.replace(" ", "_")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        pdf_filename = f"HR_Report_{district_name_clean}_{timestamp}.pdf"
+        
+        report_doc = {
+            "filename": pdf_filename,
+            "district_name": district_name,
+            "generated_at": datetime.now(),
+            "pdf_data": base64.b64encode(pdf_data).decode('utf-8'),
+            "report_json": result,
+            "report_type": "hr_report"
+        }
+        
+        generator.db.generated_reports.insert_one(report_doc)
+        
+        print(f"HR report saved: {pdf_filename}")
         
         return jsonify({
             "success": True,
-            "report": result
+            "report": result,
+            "pdf_filename": pdf_filename  # ← THIS IS THE KEY!
         })
     
     except Exception as e:
@@ -1589,35 +1612,33 @@ def generate_hr_report_endpoint():
         traceback.print_exc()
         return jsonify({"error": f"Server error: {str(e)}"}), 500
 
-@app.route('/api/download-hr-report-pdf', methods=['POST'])
-def download_hr_report_pdf():
-    """Generate and download HR report as PDF"""
-    data = request.json
-    report_data = data.get('report_data')
-    
-    if not report_data:
-        return jsonify({"error": "Report data required"}), 400
-    
+@app.route('/api/download-hr-report/<filename>')
+def download_hr_report(filename):
+    """Download HR report PDF from MongoDB"""
     try:
-        print(f"Generating HR report PDF for {report_data.get('district_name', 'Unknown')}")
-        pdf_data = generator.generate_hr_report_pdf(report_data)
+        pdf_data = generator.get_report_pdf(filename)
         
         if not pdf_data:
-            return jsonify({"error": "PDF generation failed"}), 500
-        
-        # Create filename
-        district_name = report_data.get('district_name', 'Unknown').replace(' ', '_')
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"HR_Report_{district_name}_{timestamp}.pdf"
+            return jsonify({"error": "File not found"}), 404
         
         return Response(
             pdf_data,
             mimetype='application/pdf',
             headers={'Content-Disposition': f'attachment;filename={filename}'}
         )
-    
     except Exception as e:
-        print(f"Error generating HR report PDF: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Server error: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/hr-report-view/<district_name>')
+def hr_report_view(district_name):
+    """Render HR report in print-friendly page"""
+    return render_template('hr_report_view.html', district_name=district_name)
+
+@app.route('/demo-prep-view/<district_name>')
+def demo_prep_view(district_name):
+    """Render demo prep in print-friendly page"""
+    return render_template('demo_prep_view.html', district_name=district_name)    
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
+

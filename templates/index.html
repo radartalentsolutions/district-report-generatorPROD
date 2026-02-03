@@ -1,2178 +1,2317 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>District Report Generator</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
-        
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+      @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #02223c 0%, #116753 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(2, 34, 60, 0.4);
+        overflow: hidden;
+      }
+
+      header {
+        background: linear-gradient(135deg, #02223c 0%, #116753 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+      }
+
+      header h1 {
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 32px;
+        font-weight: 600;
+        margin-bottom: 10px;
+      }
+
+      header p {
+        font-size: 16px;
+        opacity: 0.9;
+      }
+
+      .content {
+        padding: 30px;
+      }
+
+      .search-section {
+        background: #f8f9fa;
+        padding: 25px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+      }
+
+      .search-section h2 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #02223c;
+      }
+
+      .filters {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .filter-group label {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #02223c;
+      }
+
+      .filter-group input,
+      .filter-group select {
+        padding: 10px;
+        border: 1px solid #89bef4;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+
+      .filter-group input:focus,
+      .filter-group select:focus {
+        outline: none;
+        border-color: #d776c2;
+        box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
+      }
+
+      .btn {
+        background: linear-gradient(135deg, #116753 0%, #02223c 100%);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(17, 103, 83, 0.4);
+      }
+
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .results {
+        margin-top: 30px;
+      }
+
+      .results h2 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #02223c;
+      }
+
+      .district-list {
+        display: grid;
+        gap: 15px;
+      }
+
+      .district-card {
+        border: 1px solid #89bef4;
+        border-radius: 8px;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition:
+          box-shadow 0.2s,
+          border-color 0.2s;
+      }
+
+      .district-card:hover {
+        box-shadow: 0 4px 12px rgba(137, 190, 244, 0.3);
+        border-color: #d776c2;
+      }
+
+      .district-info h3 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #02223c;
+      }
+
+      .district-info p {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 4px;
+      }
+
+      .district-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .btn-demo {
+        background: linear-gradient(135deg, #89bef4 0%, #02223c 100%);
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+
+      .btn-demo:hover {
+        background: linear-gradient(135deg, #78ade3 0%, #116753 100%);
+        box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
+      }
+
+      .btn-hr {
+        background: linear-gradient(135deg, #fed46b 0%, #116753 100%);
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+
+      .btn-hr:hover {
+        background: linear-gradient(135deg, #e8bf5a 0%, #0d4f3f 100%);
+        box-shadow: 0 5px 15px rgba(254, 212, 107, 0.4);
+      }
+
+      .btn-generate {
+        background: linear-gradient(135deg, #d776c2 0%, #89bef4 100%);
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+
+      .btn-generate:hover {
+        background: linear-gradient(135deg, #c565b1 0%, #78ade3 100%);
+        box-shadow: 0 5px 15px rgba(215, 118, 194, 0.4);
+      }
+
+      .hr-report-section {
+        border: 2px solid #fed46b;
+      }
+
+      .quality-score {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 18px;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .score-excellent {
+        background: #e8f0ca;
+        color: #116753;
+        border: 2px solid #116753;
+      }
+
+      .score-good {
+        background: #89bef4;
+        color: #02223c;
+        border: 2px solid #02223c;
+      }
+
+      .score-fair {
+        background: #fed46b;
+        color: #02223c;
+        border: 2px solid #116753;
+      }
+
+      .score-poor {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 2px solid #ef4444;
+      }
+
+      .job-quality-card {
+        background: white;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-left: 4px solid #89bef4;
+        transition: all 0.3s;
+      }
+
+      .job-quality-card:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+
+      .job-quality-card.excellent {
+        border-left-color: #116753;
+        background: #f0fdf4;
+      }
+
+      .job-quality-card.poor {
+        border-left-color: #ef4444;
+        background: #fef2f2;
+      }
+
+      .issue-tag {
+        display: inline-block;
+        background: #fed46b;
+        color: #02223c;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        margin: 4px;
+        font-weight: 600;
+      }
+
+      .issue-tag.critical {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+
+      .chart-container {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin: 20px 0;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+      }
+
+      .metric-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        border: 2px solid #89bef4;
+      }
+
+      .metric-value {
+        font-size: 32px;
+        font-weight: 700;
+        color: #116753;
+        font-family: "Space Grotesk", sans-serif;
+      }
+
+      .metric-label {
+        font-size: 14px;
+        color: #666;
+        margin-top: 5px;
+      }
+
+      .loading {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+      }
+
+      .spinner {
+        border: 3px solid #e8f0ca;
+        border-top: 3px solid #116753;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
         }
-        
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .message {
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+      }
+
+      .message.success {
+        background: #e8f0ca;
+        color: #116753;
+        border: 1px solid #116753;
+      }
+
+      .message.error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #ef4444;
+      }
+
+      /* Demo Section Styles */
+      .demo-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e8f0f5 100%);
+        border: 2px solid #89bef4;
+        border-radius: 12px;
+        padding: 0;
+        margin-bottom: 30px;
+        overflow: hidden;
+        display: none;
+      }
+
+      .demo-header {
+        background: linear-gradient(135deg, #02223c 0%, #116753 100%);
+        color: white;
+        padding: 20px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .demo-header h2 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .btn-toggle {
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid white;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s;
+      }
+
+      .btn-toggle:hover {
+        background: white;
+        color: #02223c;
+      }
+
+      .demo-content {
+        padding: 30px;
+      }
+
+      .demo-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        margin-bottom: 25px;
+        overflow: hidden;
+        border: 1px solid #e0e0e0;
+        transition:
+          transform 0.3s,
+          box-shadow 0.3s;
+      }
+
+      .demo-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      }
+
+      .demo-card-header {
+        background: linear-gradient(135deg, #89bef4 20%, #d776c2 100%);
+        padding: 20px 25px;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .demo-number {
+        background: white;
+        color: #02223c;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+
+      .demo-card-header h3 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        color: white;
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .demo-card-body {
+        padding: 30px;
+      }
+
+      /* Discovery Questions Styles */
+      .question-group {
+        margin-bottom: 30px;
+      }
+
+      .question-group h4 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        color: #02223c;
+        margin-bottom: 15px;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .question-icon {
+        font-size: 24px;
+      }
+
+      .question-item {
+        background: #f8f9fa;
+        border-left: 4px solid #89bef4;
+        padding: 15px 20px;
+        margin-bottom: 12px;
+        border-radius: 0 8px 8px 0;
+        transition: all 0.3s;
+      }
+
+      .question-item:hover {
+        background: #e8f0ca;
+        border-left-color: #116753;
+        transform: translateX(5px);
+      }
+
+      .question-text {
+        color: #333;
+        font-size: 15px;
+        line-height: 1.6;
+        margin: 0;
+      }
+
+      .data-insight {
+        background: #fed46b;
+        border: 2px solid #116753;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .data-insight h5 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        color: #02223c;
+        margin: 0 0 15px 0;
+        font-size: 16px;
+      }
+
+      .insight-stat {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(2, 34, 60, 0.1);
+      }
+
+      .insight-stat:last-child {
+        border-bottom: none;
+      }
+
+      .stat-label {
+        font-weight: 600;
+        color: #02223c;
+      }
+
+      .stat-value {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        color: #116753;
+        font-size: 18px;
+      }
+
+      /* Value Proposition Styles */
+      .value-prop-intro {
+        background: linear-gradient(135deg, #e8f0ca 0%, #fed46b 100%);
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        text-align: center;
+        border: 2px solid #116753;
+      }
+
+      .intro-question {
+        font-size: 20px;
+        color: #02223c;
+        margin: 0;
+      }
+
+      .value-statement {
+        font-size: 18px;
+        line-height: 1.8;
+        color: #333;
+        margin-bottom: 30px;
+        text-align: center;
+      }
+
+      .value-points {
+        display: grid;
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+
+      .value-point {
+        display: flex;
+        gap: 15px;
+        align-items: start;
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        transition: all 0.3s;
+      }
+
+      .value-point:hover {
+        background: white;
+        border-color: #89bef4;
+        box-shadow: 0 4px 12px rgba(137, 190, 244, 0.2);
+      }
+
+      .value-icon {
+        background: linear-gradient(135deg, #116753 0%, #02223c 100%);
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 18px;
+        flex-shrink: 0;
+      }
+
+      .value-text strong {
+        display: block;
+        font-family: "Space Grotesk", sans-serif;
+        font-size: 16px;
+        color: #02223c;
+        margin-bottom: 5px;
+      }
+
+      .value-text p {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .value-tagline {
+        background: linear-gradient(135deg, #02223c 0%, #116753 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 20px;
+      }
+
+      /* Pricing Styles */
+      .pricing-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+      }
+
+      .pricing-tier {
+        background: white;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+        transition: all 0.3s;
+        position: relative;
+      }
+
+      .pricing-tier:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      }
+
+      .tier-basic:hover {
+        border-color: #89bef4;
+      }
+
+      .tier-department {
+        border-color: #d776c2;
+        border-width: 3px;
+      }
+
+      .tier-department:hover {
+        border-color: #c565b1;
+      }
+
+      .tier-enterprise:hover {
+        border-color: #116753;
+      }
+
+      .tier-badge {
+        background: linear-gradient(135deg, #d776c2 0%, #89bef4 100%);
+        color: white;
+        padding: 6px 15px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        position: absolute;
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+      }
+
+      .tier-name {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        font-size: 22px;
+        color: #02223c;
+        margin-bottom: 15px;
+      }
+
+      .tier-price {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 700;
+        font-size: 48px;
+        color: #116753;
+        margin-bottom: 20px;
+      }
+
+      .tier-price span {
+        font-size: 18px;
+        font-weight: 500;
+        color: #666;
+      }
+
+      .tier-description {
+        color: #666;
+        font-size: 15px;
+        line-height: 1.6;
+        margin-bottom: 20px;
+        min-height: 60px;
+      }
+
+      .tier-example {
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #333;
+        font-style: italic;
+      }
+
+      /* Reports Section */
+      .reports-section {
+        margin-top: 40px;
+        padding-top: 40px;
+        border-top: 2px solid #89bef4;
+      }
+
+      .reports-section h2 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        color: #02223c;
+        margin-bottom: 20px;
+      }
+
+      .cost-stats {
+        background: linear-gradient(135deg, #e8f0ca 0%, #fed46b 100%);
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #02223c;
+        border: 2px solid #116753;
+      }
+
+      .cost-stats span {
+        margin: 0 10px;
+      }
+
+      #reportSearch {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #89bef4;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+      }
+
+      #reportSearch:focus {
+        outline: none;
+        border-color: #d776c2;
+        box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
+      }
+
+      #reportSearch::placeholder {
+        color: #999;
+      }
+
+      .report-item {
+        border: 1px solid #89bef4;
+        border-radius: 8px;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        transition: border-color 0.2s;
+      }
+
+      .report-item:hover {
+        border-color: #d776c2;
+      }
+
+      .report-info {
+        flex: 1;
+      }
+
+      .report-info h4 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 500;
+        margin-bottom: 5px;
+        color: #02223c;
+      }
+
+      .report-info small {
+        color: #666;
+      }
+
+      .btn-view {
+        background: #89bef4;
+        color: #02223c;
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+
+      .btn-view:hover {
+        background: #78ade3;
+        box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
+      }
+
+      .btn-download {
+        background: #116753;
+        padding: 8px 16px;
+        font-size: 14px;
+      }
+
+      .btn-download:hover {
+        background: #0d4f3f;
+        box-shadow: 0 5px 15px rgba(17, 103, 83, 0.4);
+      }
+
+      /* Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(2, 34, 60, 0.6);
+      }
+
+      .modal-content {
+        background-color: white;
+        margin: 10% auto;
+        padding: 30px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 20px 60px rgba(2, 34, 60, 0.4);
+        border: 2px solid #89bef4;
+      }
+
+      .modal-header {
+        margin-bottom: 20px;
+      }
+
+      .modal-header h3 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        color: #02223c;
+        margin-bottom: 10px;
+      }
+
+      .modal-header p {
+        color: #666;
+        font-size: 14px;
+      }
+
+      .modal-body textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 10px;
+        border: 1px solid #89bef4;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+      }
+
+      .modal-body textarea:focus {
+        outline: none;
+        border-color: #d776c2;
+        box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
+      }
+
+      .modal-footer {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .btn-secondary {
+        background: #89bef4;
+        color: #02223c;
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+
+      .btn-secondary:hover {
+        background: #78ade3;
+        box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
+      }
+
+      /* Report Preview Styles */
+      .report-preview {
+        margin-top: 15px;
+        border: 2px solid #89bef4;
+        border-radius: 8px;
+        background: #f8f9fa;
+        overflow: hidden;
+      }
+
+      .preview-content {
+        padding: 20px;
+        max-height: 600px;
+        overflow-y: auto;
+      }
+
+      .preview-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 15px 20px;
+        background: linear-gradient(135deg, #02223c 0%, #116753 100%);
+        color: white;
+      }
+
+      .preview-header h3 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      .btn-close {
+        background: transparent;
+        border: 2px solid white;
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 18px;
+        line-height: 1;
+        transition: all 0.2s;
+      }
+
+      .btn-close:hover {
+        background: white;
+        color: #02223c;
+      }
+
+      .preview-section {
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .preview-section:last-child {
+        border-bottom: none;
+      }
+
+      .preview-section h4 {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        color: #02223c;
+        margin-bottom: 12px;
+        font-size: 16px;
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+      }
+
+      .info-item {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #89bef4;
+      }
+
+      .info-label {
+        display: block;
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .info-value {
+        display: block;
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        font-size: 18px;
+        color: #02223c;
+      }
+
+      .similar-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+      }
+
+      .similar-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .similar-card strong {
+        color: #02223c;
+        font-size: 16px;
+      }
+
+      .similar-card span {
+        color: #666;
+        font-size: 14px;
+      }
+
+      .analysis-content {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        line-height: 1.8;
+        color: #333;
+      }
+
+      .analysis-content p {
+        margin-bottom: 15px;
+      }
+
+      .analysis-content strong {
+        color: #02223c;
+      }
+
+      .analysis-header {
+        font-family: "Space Grotesk", sans-serif;
+        font-weight: 600;
+        color: #116753;
+        font-size: 18px;
+        margin: 25px 0 15px 0;
+      }
+
+      .analysis-header:first-child {
+        margin-top: 0;
+      }
+
+      .source-link {
+        color: #89bef4;
+        text-decoration: none;
+        font-size: 13px;
+        margin-left: 5px;
+      }
+
+      .source-link:hover {
+        color: #116753;
+        text-decoration: underline;
+      }
+
+      .preview-loading {
+        padding: 40px;
+        text-align: center;
+        color: #666;
+      }
+
+      .preview-error {
+        padding: 20px;
+        background: #fee2e2;
+        color: #991b1b;
+        border-radius: 6px;
+        margin: 10px;
+      }
+
+      /* Print Styles for PDF Export */
+      @media print {
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            min-height: 100vh;
-            padding: 20px;
+          background: white;
         }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(2, 34, 60, 0.4);
-            overflow: hidden;
+
+        .navbar,
+        .search-filters,
+        .btn-toggle,
+        button {
+          display: none !important;
         }
-        
-        header {
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-        }
-        
-        header h1 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 32px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        
-        header p {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-        
-        .content {
-            padding: 30px;
-        }
-        
-        .search-section {
-            background: #f8f9fa;
-            padding: 25px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-        }
-        
-        .search-section h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #02223C;
-        }
-        
-        .filters {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .filter-group label {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 5px;
-            color: #02223C;
-        }
-        
-        .filter-group input,
-        .filter-group select {
-            padding: 10px;
-            border: 1px solid #89BEF4;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        
-        .filter-group input:focus,
-        .filter-group select:focus {
-            outline: none;
-            border-color: #D776C2;
-            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
-        }
-        
-        .btn {
-            background: linear-gradient(135deg, #116753 0%, #02223C 100%);
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(17, 103, 83, 0.4);
-        }
-        
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .results {
-            margin-top: 30px;
-        }
-        
-        .results h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #02223C;
-        }
-        
-        .district-list {
-            display: grid;
-            gap: 15px;
-        }
-        
-        .district-card {
-            border: 1px solid #89BEF4;
-            border-radius: 8px;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            transition: box-shadow 0.2s, border-color 0.2s;
-        }
-        
-        .district-card:hover {
-            box-shadow: 0 4px 12px rgba(137, 190, 244, 0.3);
-            border-color: #D776C2;
-        }
-        
-        .district-info h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #02223C;
-        }
-        
-        .district-info p {
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-        
-        .district-actions {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .btn-demo {
-            background: linear-gradient(135deg, #89BEF4 0%, #02223C 100%);
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        .btn-demo:hover {
-            background: linear-gradient(135deg, #78ade3 0%, #116753 100%);
-            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
-        }
-        
-        .btn-hr {
-            background: linear-gradient(135deg, #FED46B 0%, #116753 100%);
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        .btn-hr:hover {
-            background: linear-gradient(135deg, #e8bf5a 0%, #0d4f3f 100%);
-            box-shadow: 0 5px 15px rgba(254, 212, 107, 0.4);
-        }
-        
-        .btn-generate {
-            background: linear-gradient(135deg, #D776C2 0%, #89BEF4 100%);
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        .btn-generate:hover {
-            background: linear-gradient(135deg, #c565b1 0%, #78ade3 100%);
-            box-shadow: 0 5px 15px rgba(215, 118, 194, 0.4);
-        }
-        
+
         .hr-report-section {
-            border: 2px solid #FED46B;
+          border: none;
+          box-shadow: none;
         }
-        
-        .quality-score {
-            display: inline-block;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 18px;
-            font-family: 'Space Grotesk', sans-serif;
-        }
-        
-        .score-excellent {
-            background: #E8F0CA;
-            color: #116753;
-            border: 2px solid #116753;
-        }
-        
-        .score-good {
-            background: #89BEF4;
-            color: #02223C;
-            border: 2px solid #02223C;
-        }
-        
-        .score-fair {
-            background: #FED46B;
-            color: #02223C;
-            border: 2px solid #116753;
-        }
-        
-        .score-poor {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 2px solid #ef4444;
-        }
-        
-        .job-quality-card {
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-left: 4px solid #89BEF4;
-            transition: all 0.3s;
-        }
-        
-        .job-quality-card:hover {
-            transform: translateX(5px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        
-        .job-quality-card.excellent {
-            border-left-color: #116753;
-            background: #f0fdf4;
-        }
-        
-        .job-quality-card.poor {
-            border-left-color: #ef4444;
-            background: #fef2f2;
-        }
-        
-        .issue-tag {
-            display: inline-block;
-            background: #FED46B;
-            color: #02223C;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            margin: 4px;
-            font-weight: 600;
-        }
-        
-        .issue-tag.critical {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        
-        .chart-container {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        
-        .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        
-        .metric-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            border: 2px solid #89BEF4;
-        }
-        
-        .metric-value {
-            font-size: 32px;
-            font-weight: 700;
-            color: #116753;
-            font-family: 'Space Grotesk', sans-serif;
-        }
-        
-        .metric-label {
-            font-size: 14px;
-            color: #666;
-            margin-top: 5px;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-        
-        .spinner {
-            border: 3px solid #E8F0CA;
-            border-top: 3px solid #116753;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .message {
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-        }
-        
-        .message.success {
-            background: #E8F0CA;
-            color: #116753;
-            border: 1px solid #116753;
-        }
-        
-        .message.error {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #ef4444;
-        }
-        
-        /* Demo Section Styles */
-        .demo-section {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e8f0f5 100%);
-            border: 2px solid #89BEF4;
-            border-radius: 12px;
-            padding: 0;
-            margin-bottom: 30px;
-            overflow: hidden;
-            display: none;
-        }
-        
-        .demo-header {
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            color: white;
-            padding: 20px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .demo-header h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin: 0;
-            font-size: 24px;
-        }
-        
-        .btn-toggle {
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid white;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        
-        .btn-toggle:hover {
-            background: white;
-            color: #02223C;
-        }
-        
-        .demo-content {
-            padding: 30px;
-        }
-        
+
         .demo-card {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-            margin-bottom: 25px;
-            overflow: hidden;
-            border: 1px solid #e0e0e0;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-        
-        .demo-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        }
-        
-        .demo-card-header {
-            background: linear-gradient(135deg, #89BEF4 20%, #D776C2 100%);
-            padding: 20px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .demo-number {
-            background: white;
-            color: #02223C;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 700;
-            font-size: 20px;
-            flex-shrink: 0;
-        }
-        
-        .demo-card-header h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: white;
-            margin: 0;
-            font-size: 20px;
-        }
-        
-        .demo-card-body {
-            padding: 30px;
-        }
-        
-        /* Discovery Questions Styles */
-        .question-group {
-            margin-bottom: 30px;
-        }
-        
-        .question-group h4 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 15px;
-            font-size: 18px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .question-icon {
-            font-size: 24px;
-        }
-        
-        .question-item {
-            background: #f8f9fa;
-            border-left: 4px solid #89BEF4;
-            padding: 15px 20px;
-            margin-bottom: 12px;
-            border-radius: 0 8px 8px 0;
-            transition: all 0.3s;
-        }
-        
-        .question-item:hover {
-            background: #E8F0CA;
-            border-left-color: #116753;
-            transform: translateX(5px);
-        }
-        
-        .question-text {
-            color: #333;
-            font-size: 15px;
-            line-height: 1.6;
-            margin: 0;
-        }
-        
-        .data-insight {
-            background: #FED46B;
-            border: 2px solid #116753;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
-        }
-        
-        .data-insight h5 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin: 0 0 15px 0;
-            font-size: 16px;
-        }
-        
-        .insight-stat {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(2, 34, 60, 0.1);
-        }
-        
-        .insight-stat:last-child {
-            border-bottom: none;
-        }
-        
-        .stat-label {
-            font-weight: 600;
-            color: #02223C;
-        }
-        
-        .stat-value {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 700;
-            color: #116753;
-            font-size: 18px;
-        }
-        
-        /* Value Proposition Styles */
-        .value-prop-intro {
-            background: linear-gradient(135deg, #E8F0CA 0%, #FED46B 100%);
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 25px;
-            text-align: center;
-            border: 2px solid #116753;
-        }
-        
-        .intro-question {
-            font-size: 20px;
-            color: #02223C;
-            margin: 0;
-        }
-        
-        .value-statement {
-            font-size: 18px;
-            line-height: 1.8;
-            color: #333;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
-        .value-points {
-            display: grid;
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .value-point {
-            display: flex;
-            gap: 15px;
-            align-items: start;
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            transition: all 0.3s;
-        }
-        
-        .value-point:hover {
-            background: white;
-            border-color: #89BEF4;
-            box-shadow: 0 4px 12px rgba(137, 190, 244, 0.2);
-        }
-        
-        .value-icon {
-            background: linear-gradient(135deg, #116753 0%, #02223C 100%);
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 18px;
-            flex-shrink: 0;
-        }
-        
-        .value-text strong {
-            display: block;
-            font-family: 'Space Grotesk', sans-serif;
-            font-size: 16px;
-            color: #02223C;
-            margin-bottom: 5px;
-        }
-        
-        .value-text p {
-            margin: 0;
-            color: #666;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-        
-        .value-tagline {
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            font-size: 20px;
-        }
-        
-        /* Pricing Styles */
-        .pricing-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-        }
-        
-        .pricing-tier {
-            background: white;
-            border: 2px solid #e0e0e0;
-            border-radius: 12px;
-            padding: 30px;
-            text-align: center;
-            transition: all 0.3s;
-            position: relative;
-        }
-        
-        .pricing-tier:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-        }
-        
-        .tier-basic:hover {
-            border-color: #89BEF4;
-        }
-        
-        .tier-department {
-            border-color: #D776C2;
-            border-width: 3px;
-        }
-        
-        .tier-department:hover {
-            border-color: #c565b1;
-        }
-        
-        .tier-enterprise:hover {
-            border-color: #116753;
-        }
-        
-        .tier-badge {
-            background: linear-gradient(135deg, #D776C2 0%, #89BEF4 100%);
-            color: white;
-            padding: 6px 15px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            position: absolute;
-            top: -12px;
-            left: 50%;
-            transform: translateX(-50%);
-            white-space: nowrap;
-        }
-        
-        .tier-name {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            font-size: 22px;
-            color: #02223C;
-            margin-bottom: 15px;
-        }
-        
-        .tier-price {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 700;
-            font-size: 48px;
-            color: #116753;
-            margin-bottom: 20px;
-        }
-        
-        .tier-price span {
-            font-size: 18px;
-            font-weight: 500;
-            color: #666;
-        }
-        
-        .tier-description {
-            color: #666;
-            font-size: 15px;
-            line-height: 1.6;
-            margin-bottom: 20px;
-            min-height: 60px;
-        }
-        
-        .tier-example {
-            background: #f8f9fa;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 14px;
-            color: #333;
-            font-style: italic;
-        }
-        
-        /* Reports Section */
-        .reports-section {
-            margin-top: 40px;
-            padding-top: 40px;
-            border-top: 2px solid #89BEF4;
-        }
-        
-        .reports-section h2 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 20px;
-        }
-        
-        .cost-stats {
-            background: linear-gradient(135deg, #E8F0CA 0%, #FED46B 100%);
-            padding: 12px 20px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            color: #02223C;
-            border: 2px solid #116753;
-        }
-        
-        .cost-stats span {
-            margin: 0 10px;
-        }
-        
-        #reportSearch {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #89BEF4;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-        
-        #reportSearch:focus {
-            outline: none;
-            border-color: #D776C2;
-            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
-        }
-        
-        #reportSearch::placeholder {
-            color: #999;
-        }
-        
-        .report-item {
-            border: 1px solid #89BEF4;
-            border-radius: 8px;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            transition: border-color 0.2s;
-        }
-        
-        .report-item:hover {
-            border-color: #D776C2;
-        }
-        
-        .report-info {
-            flex: 1;
-        }
-        
-        .report-info h4 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 500;
-            margin-bottom: 5px;
-            color: #02223C;
-        }
-        
-        .report-info small {
-            color: #666;
-        }
-        
-        .btn-view {
-            background: #89BEF4;
-            color: #02223C;
-            padding: 8px 16px;
-            font-size: 14px;
-        }
-        
-        .btn-view:hover {
-            background: #78ade3;
-            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
-        }
-        
-        .btn-download {
-            background: #116753;
-            padding: 8px 16px;
-            font-size: 14px;
-        }
-        
-        .btn-download:hover {
-            background: #0d4f3f;
-            box-shadow: 0 5px 15px rgba(17, 103, 83, 0.4);
-        }
-        
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(2, 34, 60, 0.6);
-        }
-        
-        .modal-content {
-            background-color: white;
-            margin: 10% auto;
-            padding: 30px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 20px 60px rgba(2, 34, 60, 0.4);
-            border: 2px solid #89BEF4;
-        }
-        
-        .modal-header {
-            margin-bottom: 20px;
-        }
-        
-        .modal-header h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 10px;
-        }
-        
-        .modal-header p {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .modal-body textarea {
-            width: 100%;
-            min-height: 120px;
-            padding: 10px;
-            border: 1px solid #89BEF4;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: vertical;
-        }
-        
-        .modal-body textarea:focus {
-            outline: none;
-            border-color: #D776C2;
-            box-shadow: 0 0 0 3px rgba(215, 118, 194, 0.1);
-        }
-        
-        .modal-footer {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-        
-        .btn-secondary {
-            background: #89BEF4;
-            color: #02223C;
-            padding: 10px 20px;
-            font-size: 14px;
-        }
-        
-        .btn-secondary:hover {
-            background: #78ade3;
-            box-shadow: 0 5px 15px rgba(137, 190, 244, 0.4);
-        }
-        
-        /* Report Preview Styles */
-        .report-preview {
-            margin-top: 15px;
-            border: 2px solid #89BEF4;
-            border-radius: 8px;
-            background: #f8f9fa;
-            overflow: hidden;
-        }
-        
-        .preview-content {
-            padding: 20px;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-        
-        .preview-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            background: linear-gradient(135deg, #02223C 0%, #116753 100%);
-            color: white;
-        }
-        
-        .preview-header h3 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            margin: 0;
-        }
-        
-        .btn-close {
-            background: transparent;
-            border: 2px solid white;
-            color: white;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 18px;
-            line-height: 1;
-            transition: all 0.2s;
-        }
-        
-        .btn-close:hover {
-            background: white;
-            color: #02223C;
-        }
-        
-        .preview-section {
-            margin-bottom: 20px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        .preview-section:last-child {
-            border-bottom: none;
-        }
-        
-        .preview-section h4 {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #02223C;
-            margin-bottom: 12px;
-            font-size: 16px;
-        }
-        
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-        }
-        
-        .info-item {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #89BEF4;
-        }
-        
-        .info-label {
-            display: block;
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .info-value {
-            display: block;
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            font-size: 18px;
-            color: #02223C;
-        }
-        
-        .similar-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-        }
-        
-        .similar-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        
-        .similar-card strong {
-            color: #02223C;
-            font-size: 16px;
-        }
-        
-        .similar-card span {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .analysis-content {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-            line-height: 1.8;
-            color: #333;
-        }
-        
-        .analysis-content p {
-            margin-bottom: 15px;
-        }
-        
-        .analysis-content strong {
-            color: #02223C;
-        }
-        
-        .analysis-header {
-            font-family: 'Space Grotesk', sans-serif;
-            font-weight: 600;
-            color: #116753;
-            font-size: 18px;
-            margin: 25px 0 15px 0;
-        }
-        
-        .analysis-header:first-child {
-            margin-top: 0;
-        }
-        
-        .source-link {
-            color: #89BEF4;
-            text-decoration: none;
-            font-size: 13px;
-            margin-left: 5px;
-        }
-        
-        .source-link:hover {
-            color: #116753;
-            text-decoration: underline;
-        }
-        
-        .preview-loading {
-            padding: 40px;
-            text-align: center;
-            color: #666;
-        }
-        
-        .preview-error {
-            padding: 20px;
-            background: #fee2e2;
-            color: #991b1b;
-            border-radius: 6px;
-            margin: 10px;
-        }
-        
-        /* Print Styles for PDF Export */
-        @media print {
-            body {
-                background: white;
-            }
-            
-            .navbar, .search-filters, .btn-toggle, button {
-                display: none !important;
-            }
-            
-            .hr-report-section {
-                border: none;
-                box-shadow: none;
-            }
-            
-            .demo-card {
-                page-break-inside: avoid;
-                break-inside: avoid;
-            }
-            
-            .job-quality-card {
-                page-break-inside: avoid;
-                break-inside: avoid;
-            }
-            
-            .chart-container canvas {
-                max-height: 300px;
-            }
-        }
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+
+        .job-quality-card {
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+
+        .chart-container canvas {
+          max-height: 300px;
+        }
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <header>
-            <h1>📊 District Report Generator</h1>
-            <p>Search for school districts and generate comprehensive recruitment reports</p>
-        </header>
-        
-        <div class="content">
-            <!-- Search Section - At Top -->
-            <div class="search-section">
-                <h2>🔍 Search & Select District</h2>
-                
-                <div class="filters">
-                    <div class="filter-group">
-                        <label>District Name</label>
-                        <input type="text" id="searchText" placeholder="Search by name...">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>State</label>
-                        <select id="stateFilter">
-                            <option value="">All States</option>
-                            {% for state in states %}
-                            <option value="{{ state }}">{{ state }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>County</label>
-                        <input type="text" id="countyFilter" placeholder="Enter county...">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Min Enrollment</label>
-                        <input type="number" id="minEnrollment" placeholder="0">
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Max Enrollment</label>
-                        <input type="number" id="maxEnrollment" placeholder="100000">
-                    </div>
-                </div>
-                
-                <button class="btn" onclick="searchDistricts()">Search Districts</button>
+      <header>
+        <h1>📊 District Report Generator</h1>
+        <p>
+          Search for school districts and generate comprehensive recruitment
+          reports
+        </p>
+      </header>
+
+      <div class="content">
+        <!-- Search Section - At Top -->
+        <div class="search-section">
+          <h2>🔍 Search & Select District</h2>
+
+          <div class="filters">
+            <div class="filter-group">
+              <label>District Name</label>
+              <input
+                type="text"
+                id="searchText"
+                placeholder="Search by name..."
+              />
             </div>
-            
-            <!-- Message Area -->
-            <div id="messageArea"></div>
-            
-            <!-- Results Section -->
-            <div class="results" id="resultsSection" style="display:none;">
-                <h2>Search Results - Choose an Action</h2>
-                <div class="district-list" id="districtList"></div>
+
+            <div class="filter-group">
+              <label>State</label>
+              <select id="stateFilter">
+                <option value="">All States</option>
+                {% for state in states %}
+                <option value="{{ state }}">{{ state }}</option>
+                {% endfor %}
+              </select>
             </div>
-            
-            <!-- Demo Preparation Section - Hidden Until Triggered -->
-            <div class="demo-section" id="demoSection">
-                <div class="demo-header">
-                    <h2 id="demoDistrictName">🎯 Demo Preparation</h2>
-                    <button class="btn-toggle" onclick="hideDemo()">Hide</button>
-                </div>
-                
-                <div class="demo-content" id="demoContent">
-                    <!-- Part 1: Discovery Questions -->
-                    <div class="demo-card">
-                        <div class="demo-card-header">
-                            <span class="demo-number">1</span>
-                            <h3>Discovery Questions</h3>
-                        </div>
-                        <div class="demo-card-body" id="discoveryQuestions">
-                            <!-- Will be populated by JavaScript -->
-                        </div>
-                    </div>
-                    
-                    <!-- Part 2: Our Value Proposition -->
-                    <div class="demo-card">
-                        <div class="demo-card-header">
-                            <span class="demo-number">2</span>
-                            <h3>Our Value Proposition</h3>
-                        </div>
-                        <div class="demo-card-body">
-                            <div class="value-prop-intro">
-                                <p class="intro-question"><strong>"How does this sound to you?"</strong></p>
-                            </div>
-                            
-                            <div class="value-prop-content">
-                                <p class="value-statement">
-                                    We help school districts <strong>broaden their candidate base</strong> by ensuring 
-                                    job postings are visible and the application process is friction-free.
-                                </p>
-                                
-                                <div class="value-points">
-                                    <div class="value-point">
-                                        <div class="value-icon">✓</div>
-                                        <div class="value-text">
-                                            <strong>Assess & Prescreen</strong>
-                                            <p>We evaluate candidates based on your specific qualifications</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="value-point">
-                                        <div class="value-icon">✓</div>
-                                        <div class="value-text">
-                                            <strong>Streamline Scheduling</strong>
-                                            <p>Coordinate final interviews between you and qualified candidates</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="value-point">
-                                        <div class="value-icon">✓</div>
-                                        <div class="value-text">
-                                            <strong>Navigate Onboarding</strong>
-                                            <p>Support both you and candidates through the entire process</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="value-tagline">
-                                    <strong>We don't replace you. We enhance you.</strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Part 3: Pricing Structure -->
-                    <div class="demo-card">
-                        <div class="demo-card-header">
-                            <span class="demo-number">3</span>
-                            <h3>Pricing Structure</h3>
-                        </div>
-                        <div class="demo-card-body">
-                            <div class="pricing-grid">
-                                <div class="pricing-tier tier-basic">
-                                    <div class="tier-name">Single Role</div>
-                                    <div class="tier-price">$500<span>/month</span></div>
-                                    <div class="tier-description">
-                                        Recruiting for a single role type with one primary interviewer
-                                    </div>
-                                    <div class="tier-example">
-                                        Example: SPED Teacher
-                                    </div>
-                                </div>
-                                
-                                <div class="pricing-tier tier-department">
-                                    <div class="tier-badge">Most Popular</div>
-                                    <div class="tier-name">Department-Wide</div>
-                                    <div class="tier-price">$1,500<span>/month</span></div>
-                                    <div class="tier-description">
-                                        Multiple role types within one department with multiple interviewers
-                                    </div>
-                                    <div class="tier-example">
-                                        Example: SPED Teacher + SPED Paraprofessional
-                                    </div>
-                                </div>
-                                
-                                <div class="pricing-tier tier-enterprise">
-                                    <div class="tier-name">Organization-Wide</div>
-                                    <div class="tier-price">$3,000<span>/month</span></div>
-                                    <div class="tier-description">
-                                        Full recruiting support across multiple departments and role types
-                                    </div>
-                                    <div class="tier-example">
-                                        Example: SPED, Custodial, Nutrition Services, etc.
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+
+            <div class="filter-group">
+              <label>County</label>
+              <input
+                type="text"
+                id="countyFilter"
+                placeholder="Enter county..."
+              />
             </div>
-            
-            <!-- HR Administrator Report Section -->
-            <div class="hr-report-section demo-section" id="hrReportSection" style="display:none;">
-                <div class="demo-header">
-                    <h2 id="hrReportTitle">📊 HR Administrator Report</h2>
-                    <button class="btn-toggle" onclick="hideHRReport()">Hide</button>
-                </div>
-                
-                <div class="demo-content" id="hrReportContent">
-                    <!-- Content populated by JavaScript -->
-                </div>
+
+            <div class="filter-group">
+              <label>Min Enrollment</label>
+              <input type="number" id="minEnrollment" placeholder="0" />
             </div>
-            
-            <!-- Reports Section -->
-            <div class="reports-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="margin: 0;">📁 Previous Reports</h2>
-                    <div id="costStats" class="cost-stats"></div>
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <input type="text" id="reportSearch" placeholder="🔍 Search reports by district name..." onkeyup="filterReports()">
-                </div>
-                <div id="reportsList"></div>
+
+            <div class="filter-group">
+              <label>Max Enrollment</label>
+              <input type="number" id="maxEnrollment" placeholder="100000" />
             </div>
+          </div>
+
+          <button class="btn" onclick="searchDistricts()">
+            Search Districts
+          </button>
         </div>
+
+        <!-- Message Area -->
+        <div id="messageArea"></div>
+
+        <!-- Results Section -->
+        <div class="results" id="resultsSection" style="display: none">
+          <h2>Search Results - Choose an Action</h2>
+          <div class="district-list" id="districtList"></div>
+        </div>
+
+        <!-- Demo Preparation Section - Hidden Until Triggered -->
+        <div class="demo-section" id="demoSection">
+          <div class="demo-header">
+            <h2 id="demoDistrictName">🎯 Demo Preparation</h2>
+            <button class="btn-toggle" onclick="hideDemo()">Hide</button>
+          </div>
+
+          <div class="demo-content" id="demoContent">
+            <!-- Part 1: Discovery Questions -->
+            <div class="demo-card">
+              <div class="demo-card-header">
+                <span class="demo-number">1</span>
+                <h3>Discovery Questions</h3>
+              </div>
+              <div class="demo-card-body" id="discoveryQuestions">
+                <!-- Will be populated by JavaScript -->
+              </div>
+            </div>
+
+            <!-- Part 2: Our Value Proposition -->
+            <div class="demo-card">
+              <div class="demo-card-header">
+                <span class="demo-number">2</span>
+                <h3>Our Value Proposition</h3>
+              </div>
+              <div class="demo-card-body">
+                <div class="value-prop-intro">
+                  <p class="intro-question">
+                    <strong>"How does this sound to you?"</strong>
+                  </p>
+                </div>
+
+                <div class="value-prop-content">
+                  <p class="value-statement">
+                    We help school districts
+                    <strong>broaden their candidate base</strong> by ensuring
+                    job postings are visible and the application process is
+                    friction-free.
+                  </p>
+
+                  <div class="value-points">
+                    <div class="value-point">
+                      <div class="value-icon">✓</div>
+                      <div class="value-text">
+                        <strong>Assess & Prescreen</strong>
+                        <p>
+                          We evaluate candidates based on your specific
+                          qualifications
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="value-point">
+                      <div class="value-icon">✓</div>
+                      <div class="value-text">
+                        <strong>Streamline Scheduling</strong>
+                        <p>
+                          Coordinate final interviews between you and qualified
+                          candidates
+                        </p>
+                      </div>
+                    </div>
+
+                    <div class="value-point">
+                      <div class="value-icon">✓</div>
+                      <div class="value-text">
+                        <strong>Navigate Onboarding</strong>
+                        <p>
+                          Support both you and candidates through the entire
+                          process
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="value-tagline">
+                    <strong>We don't replace you. We enhance you.</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Part 3: Pricing Structure -->
+            <div class="demo-card">
+              <div class="demo-card-header">
+                <span class="demo-number">3</span>
+                <h3>Pricing Structure</h3>
+              </div>
+              <div class="demo-card-body">
+                <div class="pricing-grid">
+                  <div class="pricing-tier tier-basic">
+                    <div class="tier-name">Single Role</div>
+                    <div class="tier-price">$500<span>/month</span></div>
+                    <div class="tier-description">
+                      Recruiting for a single role type with one primary
+                      interviewer
+                    </div>
+                    <div class="tier-example">Example: SPED Teacher</div>
+                  </div>
+
+                  <div class="pricing-tier tier-department">
+                    <div class="tier-badge">Most Popular</div>
+                    <div class="tier-name">Department-Wide</div>
+                    <div class="tier-price">$1,500<span>/month</span></div>
+                    <div class="tier-description">
+                      Multiple role types within one department with multiple
+                      interviewers
+                    </div>
+                    <div class="tier-example">
+                      Example: SPED Teacher + SPED Paraprofessional
+                    </div>
+                  </div>
+
+                  <div class="pricing-tier tier-enterprise">
+                    <div class="tier-name">Organization-Wide</div>
+                    <div class="tier-price">$3,000<span>/month</span></div>
+                    <div class="tier-description">
+                      Full recruiting support across multiple departments and
+                      role types
+                    </div>
+                    <div class="tier-example">
+                      Example: SPED, Custodial, Nutrition Services, etc.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HR Administrator Report Section -->
+        <div
+          class="hr-report-section demo-section"
+          id="hrReportSection"
+          style="display: none"
+        >
+          <div class="demo-header">
+            <h2 id="hrReportTitle">📊 HR Administrator Report</h2>
+            <div style="display: flex; gap: 10px">
+              <button
+                class="btn-toggle"
+                id="hrDownloadBtn"
+                onclick="downloadHRReportPDF('placeholder')"
+                style="display: none"
+              >
+                📄 Download PDF
+              </button>
+              <button class="btn-toggle" onclick="hideHRReport()">Hide</button>
+            </div>
+          </div>
+
+          <div class="demo-content" id="hrReportContent">
+            <!-- Content populated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Reports Section -->
+        <div class="reports-section">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 20px;
+            "
+          >
+            <h2 style="margin: 0">📁 Previous Reports</h2>
+            <div id="costStats" class="cost-stats"></div>
+          </div>
+          <div style="margin-bottom: 20px">
+            <input
+              type="text"
+              id="reportSearch"
+              placeholder="🔍 Search reports by district name..."
+              onkeyup="filterReports()"
+            />
+          </div>
+          <div id="reportsList"></div>
+        </div>
+      </div>
     </div>
-    
+
     <!-- Contact Names Modal -->
     <div id="contactModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Meeting Preparation (Optional)</h3>
-                <p>Enter names of people you'll be meeting with for background research:</p>
-            </div>
-            <div class="modal-body">
-                <textarea id="contactNames" placeholder="e.g., John Smith (Superintendent), Jane Doe (HR Director)&#10;&#10;Leave blank to skip"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="skipContacts()">Skip</button>
-                <button class="btn btn-generate" onclick="confirmGenerate()">Generate Report</button>
-            </div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Meeting Preparation (Optional)</h3>
+          <p>
+            Enter names of people you'll be meeting with for background
+            research:
+          </p>
         </div>
+        <div class="modal-body">
+          <textarea
+            id="contactNames"
+            placeholder="e.g., John Smith (Superintendent), Jane Doe (HR Director)&#10;&#10;Leave blank to skip"
+          ></textarea>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="skipContacts()">
+            Skip
+          </button>
+          <button class="btn btn-generate" onclick="confirmGenerate()">
+            Generate Report
+          </button>
+        </div>
+      </div>
     </div>
-    
+
     <script>
-        let currentDistrict = null;
-        let allReports = [];
-        let currentDistrictData = null;
-        
-        // Load previous reports on page load
-        window.onload = function() {
-            loadReports();
-            loadCostStats();
-        };
-        
-        function showMessage(message, type = 'success') {
-            const messageArea = document.getElementById('messageArea');
-            messageArea.innerHTML = `<div class="message ${type}">${message}</div>`;
-            setTimeout(() => {
-                messageArea.innerHTML = '';
-            }, 5000);
+      let currentDistrict = null;
+      let allReports = [];
+      let currentDistrictData = null;
+
+      // Load previous reports on page load
+      window.onload = function () {
+        loadReports();
+        loadCostStats();
+      };
+
+      function showMessage(message, type = "success") {
+        const messageArea = document.getElementById("messageArea");
+        messageArea.innerHTML = `<div class="message ${type}">${message}</div>`;
+        setTimeout(() => {
+          messageArea.innerHTML = "";
+        }, 5000);
+      }
+
+      async function searchDistricts() {
+        const searchText = document.getElementById("searchText").value;
+        const state = document.getElementById("stateFilter").value;
+        const county = document.getElementById("countyFilter").value;
+        const minEnrollment = document.getElementById("minEnrollment").value;
+        const maxEnrollment = document.getElementById("maxEnrollment").value;
+
+        const resultsSection = document.getElementById("resultsSection");
+        const districtList = document.getElementById("districtList");
+
+        // Show loading
+        resultsSection.style.display = "block";
+        districtList.innerHTML =
+          '<div class="loading"><div class="spinner"></div><p>Searching districts...</p></div>';
+
+        try {
+          const response = await fetch("/api/search", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              search_text: searchText || null,
+              state: state || null,
+              county: county || null,
+              min_enrollment: minEnrollment ? parseInt(minEnrollment) : null,
+              max_enrollment: maxEnrollment ? parseInt(maxEnrollment) : null,
+            }),
+          });
+
+          const districts = await response.json();
+
+          if (districts.length === 0) {
+            districtList.innerHTML =
+              '<p class="loading">No districts found matching your criteria.</p>';
+            return;
+          }
+
+          districtList.innerHTML = districts
+            .map((district) => {
+              const demographics = district.demographics || {};
+              const frlText = demographics.free_reduced_lunch_pct
+                ? `${demographics.free_reduced_lunch_pct}%`
+                : "N/A";
+              const minorityText = demographics.minority_pct
+                ? `${demographics.minority_pct}%`
+                : "N/A";
+
+              return `
+                          <div class="district-card">
+                              <div class="district-info">
+                                  <h3>${district.name}</h3>
+                                  <p><strong>Location:</strong> ${district.county || "N/A"}, ${district.state}</p>
+                                  <p><strong>Enrollment:</strong> ${(district.totalEnrollment || 0).toLocaleString()} | <strong>Schools:</strong> ${district.totalSchools || 0} | <strong>Jobs:</strong> ${district.totalJobs || 0}</p>
+                                  <p><strong>FRL:</strong> ${frlText} | <strong>Minority:</strong> ${minorityText}</p>
+                              </div>
+                              <div class="district-actions">
+                                  <button class="btn btn-demo" onclick='showDemoPrep(${JSON.stringify(district)})'>
+                                      📋 Demo Prep
+                                  </button>
+                                  <button class="btn btn-hr" onclick="showHRReport('${district.name.replace(/'/g, "\\'")}')">
+                                      📊 HR Report
+                                  </button>
+                                  <button class="btn btn-generate" onclick="openContactModal('${district.name.replace(/'/g, "\\'")}')">
+                                      📄 Full Report
+                                  </button>
+                              </div>
+                          </div>
+                      `;
+            })
+            .join("");
+        } catch (error) {
+          districtList.innerHTML =
+            '<p class="loading" style="color: red;">Error searching districts. Please try again.</p>';
+          console.error("Search error:", error);
         }
-        
-        async function searchDistricts() {
-            const searchText = document.getElementById('searchText').value;
-            const state = document.getElementById('stateFilter').value;
-            const county = document.getElementById('countyFilter').value;
-            const minEnrollment = document.getElementById('minEnrollment').value;
-            const maxEnrollment = document.getElementById('maxEnrollment').value;
-            
-            const resultsSection = document.getElementById('resultsSection');
-            const districtList = document.getElementById('districtList');
-            
-            // Show loading
-            resultsSection.style.display = 'block';
-            districtList.innerHTML = '<div class="loading"><div class="spinner"></div><p>Searching districts...</p></div>';
-            
-            try {
-                const response = await fetch('/api/search', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        search_text: searchText || null,
-                        state: state || null,
-                        county: county || null,
-                        min_enrollment: minEnrollment ? parseInt(minEnrollment) : null,
-                        max_enrollment: maxEnrollment ? parseInt(maxEnrollment) : null
-                    })
-                });
-                
-                const districts = await response.json();
-                
-                if (districts.length === 0) {
-                    districtList.innerHTML = '<p class="loading">No districts found matching your criteria.</p>';
-                    return;
-                }
-                
-                districtList.innerHTML = districts.map(district => {
-                    const demographics = district.demographics || {};
-                    const frlText = demographics.free_reduced_lunch_pct ? `${demographics.free_reduced_lunch_pct}%` : 'N/A';
-                    const minorityText = demographics.minority_pct ? `${demographics.minority_pct}%` : 'N/A';
-                    
-                    return `
-                    <div class="district-card">
-                        <div class="district-info">
-                            <h3>${district.name}</h3>
-                            <p><strong>Location:</strong> ${district.county || 'N/A'}, ${district.state}</p>
-                            <p><strong>Enrollment:</strong> ${(district.totalEnrollment || 0).toLocaleString()} | <strong>Schools:</strong> ${district.totalSchools || 0} | <strong>Jobs:</strong> ${district.totalJobs || 0}</p>
-                            <p><strong>FRL:</strong> ${frlText} | <strong>Minority:</strong> ${minorityText}</p>
-                        </div>
-                        <div class="district-actions">
-                            <button class="btn btn-demo" onclick='showDemoPrep(${JSON.stringify(district)})'>
-                                📋 Demo Prep
-                            </button>
-                            <button class="btn btn-hr" onclick="showHRReport('${district.name.replace(/'/g, "\\'")}')">
-                                📊 HR Report
-                            </button>
-                            <button class="btn btn-generate" onclick="openContactModal('${district.name.replace(/'/g, "\\'")}')">
-                                📄 Full Report
-                            </button>
-                        </div>
-                    </div>
-                `}).join('');
-                
-            } catch (error) {
-                districtList.innerHTML = '<p class="loading" style="color: red;">Error searching districts. Please try again.</p>';
-                console.error('Search error:', error);
-            }
+      }
+
+      function showDemoPrep(districtData) {
+        // Open in new window instead of inline
+        window.open(
+          `/demo-prep-view/${encodeURIComponent(districtData.name)}`,
+          "_blank",
+          "width=1200,height=800",
+        );
+      }
+
+      async function generateDemoScript(districtName) {
+        try {
+          const response = await fetch("/api/generate-demo-script", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              district_name: districtName,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (result.error) {
+            document.getElementById("discoveryQuestions").innerHTML =
+              `<div class="preview-error">Error: ${result.error}</div>`;
+            return;
+          }
+
+          // Parse and display the demo script
+          displayDemoScript(result.script);
+        } catch (error) {
+          console.error("Error generating demo script:", error);
+          document.getElementById("discoveryQuestions").innerHTML =
+            '<div class="preview-error">Error generating demo script. Please try again.</div>';
         }
-        
-        function showDemoPrep(districtData) {
-            currentDistrictData = districtData;
-            
-            // Update header with district name
-            document.getElementById('demoDistrictName').innerText = `🎯 Demo Preparation for ${districtData.name}`;
-            
-            // Show demo section with loading state
-            const discoveryDiv = document.getElementById('discoveryQuestions');
-            discoveryDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Generating demo script with board minutes search...</p></div>';
-            
-            document.getElementById('demoSection').style.display = 'block';
-            document.getElementById('demoSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-            
-            // Call API to generate demo script
-            generateDemoScript(districtData.name);
-        }
-        
-        async function generateDemoScript(districtName) {
-            try {
-                const response = await fetch('/api/generate-demo-script', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        district_name: districtName
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.error) {
-                    document.getElementById('discoveryQuestions').innerHTML = 
-                        `<div class="preview-error">Error: ${result.error}</div>`;
-                    return;
-                }
-                
-                // Parse and display the demo script
-                displayDemoScript(result.script);
-                
-            } catch (error) {
-                console.error('Error generating demo script:', error);
-                document.getElementById('discoveryQuestions').innerHTML = 
-                    '<div class="preview-error">Error generating demo script. Please try again.</div>';
-            }
-        }
-        
-        function displayDemoScript(scriptData) {
-            const discoveryDiv = document.getElementById('discoveryQuestions');
-            
-            // Add debugging
-            console.log('Script Data:', scriptData);
-            
-            try {
-                // Safely access nested properties
-                const basicData = scriptData.basic_data || {};
-                const demographics = basicData.demographics || {};
-                const hasJobData = scriptData.has_job_data || false;
-                
-                // Format the demo script (assuming it comes as formatted text)
-                const scriptText = scriptData.demo_script || 'No script content available';
-                
-                // Convert the script text to HTML with proper formatting
-                let formattedScript = scriptText
-                    .replace(/## (.+)/g, '<h4 style="color: #02223C; font-family: \'Space Grotesk\', sans-serif; margin: 20px 0 10px 0;">$1</h4>')
-                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/• (.+)/g, '<div class="question-item"><p class="question-text">$1</p></div>')
-                    .replace(/\[Source: ([^\]]+)\]/g, '<a href="$1" target="_blank" class="source-link">[Source]</a>')
-                    .replace(/\n\n/g, '</p><p>')
-                    .replace(/^\d+\.\s+(.+)$/gm, '<h4 style="color: #116753; font-family: \'Space Grotesk\', sans-serif; margin: 20px 0 10px 0; font-size: 18px;"><span class="question-icon">📋</span> $1</h4>');
-                
-                let html = `
-                    <div class="data-insight" style="margin-bottom: 20px;">
-                        <h5>📊 District Quick Facts</h5>
-                        <div class="insight-stat">
-                            <span class="stat-label">District Size:</span>
-                            <span class="stat-value">${(basicData.enrollment || 0).toLocaleString()} students</span>
-                        </div>
-                        <div class="insight-stat">
-                            <span class="stat-label">Number of Schools:</span>
-                            <span class="stat-value">${basicData.num_schools || 0}</span>
-                        </div>
-                        ${hasJobData ? `
-                        <div class="insight-stat">
-                            <span class="stat-label">Current Job Postings:</span>
-                            <span class="stat-value">${basicData.total_jobs || 0}</span>
-                        </div>
-                        ` : `
-                        <div class="insight-stat" style="background: #FED46B; padding: 10px; border-radius: 6px; margin-top: 10px;">
-                            <span class="stat-label" style="color: #02223C;">⚠️ Job Data:</span>
-                            <span style="color: #02223C; font-weight: 600;">Not available - District may not use Applitrack</span>
-                        </div>
-                        `}
-                        <div class="insight-stat">
-                            <span class="stat-label">Free/Reduced Lunch:</span>
-                            <span class="stat-value">${demographics.free_reduced_lunch_pct || 'N/A'}%</span>
-                        </div>
-                        <div class="insight-stat">
-                            <span class="stat-label">Minority Population:</span>
-                            <span class="stat-value">${demographics.minority_pct || 'N/A'}%</span>
-                        </div>
-                    </div>
-                    
-                    <div class="analysis-content" style="background: white; padding: 20px; border-radius: 8px;">
-                        ${formattedScript}
-                    </div>
-                `;
-                
-                discoveryDiv.innerHTML = html;
-            } catch (error) {
-                console.error('Error displaying demo script:', error);
-                discoveryDiv.innerHTML = `
-                    <div class="preview-error">
-                        <strong>Error displaying demo script:</strong><br>
-                        ${error.message}<br><br>
-                        <strong>Debug Info:</strong><br>
-                        <pre>${JSON.stringify(scriptData, null, 2)}</pre>
-                    </div>
-                `;
-            }
-        }
-        
-        function hideDemo() {
-            document.getElementById('demoSection').style.display = 'none';
-        }
-        
-        // HR Report Functions
-        let currentCategoryChart = null;
-        let currentLocationChart = null;
-        
-        function showHRReport(districtName) {
-            document.getElementById('hrReportTitle').innerText = `📊 HR Administrator Report for ${districtName}`;
-            document.getElementById('hrReportContent').innerHTML = 
-                '<div class="loading"><div class="spinner"></div><p>Analyzing job postings...</p></div>';
-            document.getElementById('hrReportSection').style.display = 'block';
-            document.getElementById('hrReportSection').scrollIntoView({ behavior: 'smooth' });
-            generateHRReport(districtName);
-        }
-        
-        function hideHRReport() {
-            document.getElementById('hrReportSection').style.display = 'none';
-            if (currentCategoryChart) {
-                currentCategoryChart.destroy();
-                currentCategoryChart = null;
-            }
-            if (currentLocationChart) {
-                currentLocationChart.destroy();
-                currentLocationChart = null;
-            }
-        }
-        
-        async function generateHRReport(districtName) {
-            try {
-                const response = await fetch('/api/generate-hr-report', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ district_name: districtName })
-                });
-                
-                const result = await response.json();
-                
-                if (result.error) {
-                    document.getElementById('hrReportContent').innerHTML = 
-                        `<div class="preview-error">
-                            <strong>${result.error}</strong><br>
-                            ${result.message || 'This district may not have scraped Applitrack jobs yet.'}
-                        </div>`;
-                    return;
-                }
-                
-                displayHRReport(result.report);
-            } catch (error) {
-                console.error('Error generating HR report:', error);
-                document.getElementById('hrReportContent').innerHTML = 
-                    '<div class="preview-error">Error generating HR report. Please try again.</div>';
-            }
-        }
-        
-        function displayHRReport(report) {
-            const contentDiv = document.getElementById('hrReportContent');
-            const score = report.quality_report.overall_quality_score;
-            let scoreClass = 'score-poor';
-            if (score >= 80) scoreClass = 'score-excellent';
-            else if (score >= 65) scoreClass = 'score-good';
-            else if (score >= 50) scoreClass = 'score-fair';
-            
-            let html = `
-                <div class="metric-grid">
-                    <div class="metric-card">
-                        <div class="metric-value">${report.total_jobs}</div>
-                        <div class="metric-label">Total Open Jobs</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value quality-score ${scoreClass}">${score}</div>
-                        <div class="metric-label">Overall Quality Score</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value">${Math.round(report.quality_report.avg_word_count)}</div>
-                        <div class="metric-label">Average Word Count</div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-value">${report.analysis.total_categories}</div>
-                        <div class="metric-label">Job Categories</div>
-                    </div>
-                </div>
-                
-                <div class="demo-card">
-                    <div class="demo-card-header">
-                        <span class="demo-number">1</span>
-                        <h3>Open Positions by Category</h3>
-                    </div>
-                    <div class="demo-card-body">
-                        <div class="chart-container">
-                            <canvas id="categoryPieChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="demo-card">
-                    <div class="demo-card-header">
-                        <span class="demo-number">2</span>
-                        <h3>Open Positions by Location</h3>
-                    </div>
-                    <div class="demo-card-body">
-                        <div class="chart-container">
-                            <canvas id="locationPieChart" width="400" height="200"></canvas>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="demo-card">
-                    <div class="demo-card-header">
-                        <span class="demo-number">3</span>
-                        <h3>Average Days Open by Category</h3>
-                    </div>
-                    <div class="demo-card-body">
-                        ${generateDaysOpenTable(report.analysis.by_category)}
-                    </div>
-                </div>
-                
-                <div class="demo-card">
-                    <div class="demo-card-header">
-                        <span class="demo-number">4</span>
-                        <h3>Top Performing Job Postings</h3>
-                    </div>
-                    <div class="demo-card-body">
-                        ${generateJobCards(report.quality_report.top_performing_jobs, 'excellent')}
-                    </div>
-                </div>
-                
-                <div class="demo-card">
-                    <div class="demo-card-header">
-                        <span class="demo-number">5</span>
-                        <h3>Improvement Opportunities</h3>
-                    </div>
-                    <div class="demo-card-body">
-                        ${generateJobCards(report.quality_report.improvement_opportunities, 'poor')}
-                    </div>
-                </div>
-                
-                <div style="text-align: center; margin-top: 30px;">
-                    <button class="cta-button" onclick="downloadHRReportPDF('${report.district_name}')">
-                        📄 Download PDF Report
-                    </button>
-                </div>
-            `;
-            
-            contentDiv.innerHTML = html;
-            renderCategoryChart(report.charts.category_chart);
-            renderLocationChart(report.charts.location_chart);
-            
-            // Store report for PDF generation
-            window.currentHRReport = report;
-        }
-        
-        
-        function generateDaysOpenTable(byCategory) {
-            // Convert to array and sort by avg_days_open (highest to lowest)
-            const sortedCategories = Object.entries(byCategory).sort((a, b) => b[1].avg_days_open - a[1].avg_days_open);
-            
-            let html = '<table style="width: 100%; border-collapse: collapse;">';
-            html += '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #116753;">';
-            html += '<th style="padding: 12px; text-align: left;">Category</th>';
-            html += '<th style="padding: 12px; text-align: center;">Count</th>';
-            html += '<th style="padding: 12px; text-align: center;">Avg Days Open</th>';
-            html += '</tr></thead><tbody>';
-            
-            for (const [category, data] of sortedCategories) {
-                const daysClass = data.avg_days_open > 60 ? 'color: #ef4444; font-weight: 700;' : '';
-                html += `<tr style="border-bottom: 1px solid #e0e0e0;">`;
-                html += `<td style="padding: 12px;"><strong>${category}</strong></td>`;
-                html += `<td style="padding: 12px; text-align: center;">${data.count}</td>`;
-                html += `<td style="padding: 12px; text-align: center; ${daysClass}">${data.avg_days_open} days</td>`;
-                html += `</tr>`;
-            }
-            
-            html += '</tbody></table>';
-            return html;
-        }
-        
-        
-        function generateJobCards(jobs, type) {
-            if (!jobs || jobs.length === 0) {
-                return '<p style="color: #666; font-style: italic;">No jobs in this category.</p>';
-            }
-            
-            return jobs.map((job, index) => {
-                const scoreClass = job.quality_score >= 80 ? 'score-excellent' : 
-                                  job.quality_score >= 65 ? 'score-good' :
-                                  job.quality_score >= 50 ? 'score-fair' : 'score-poor';
-                
-                const cardId = `job-${type}-${index}`;
-                
-                return `
-                    <div class="job-quality-card ${type}">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
-                            <div>
-                                <strong style="font-size: 16px; color: #02223C;">${job.title}</strong><br>
-                                <span style="color: #666; font-size: 14px;">${job.school} • ${job.category}</span><br>
-                                <span style="color: #999; font-size: 12px;">Word Count: ${job.word_count || 'N/A'}</span>
-                            </div>
-                            <span class="quality-score ${scoreClass}" style="font-size: 14px; padding: 6px 12px;">
-                                ${job.quality_score}
-                            </span>
-                        </div>
-                        
-                        ${job.reasons && job.reasons.length > 0 ? `
-                            <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 6px;">
-                                <strong style="font-size: 13px; color: #02223C;">Why this score:</strong>
-                                ${job.reasons.map(reason => `<div style="margin: 4px 0; font-size: 13px;">${reason}</div>`).join('')}
-                            </div>
-                        ` : ''}
-                        
-                        ${job.full_description ? `
-                            <button 
-                                onclick="toggleJobDescription('${cardId}')" 
-                                style="background: #116753; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-top: 10px;"
-                            >
-                                📄 View Full Description
-                            </button>
-                            <div id="${cardId}" style="display: none; margin-top: 10px; padding: 15px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; max-height: 300px; overflow-y: auto;">
-                                <strong style="display: block; margin-bottom: 10px; color: #02223C;">Full Job Description:</strong>
-                                <div style="white-space: pre-wrap; font-size: 13px; line-height: 1.6; color: #333;">${job.full_description}</div>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }).join('');
-        }
-        
-        function toggleJobDescription(cardId) {
-            const element = document.getElementById(cardId);
-            if (element.style.display === 'none') {
-                element.style.display = 'block';
-            } else {
-                element.style.display = 'none';
-            }
-        }
-        
-        
-        function downloadHRReportPDF(districtName) {
-            // Use browser print function with current styling
-            const originalTitle = document.title;
-            document.title = `HR Report - ${districtName}`;
-            
-            // Hide buttons and interactive elements for PDF
-            const buttons = document.querySelectorAll('button');
-            buttons.forEach(btn => btn.style.display = 'none');
-            
-            window.print();
-            
-            // Restore after print
-            setTimeout(() => {
-                document.title = originalTitle;
-                buttons.forEach(btn => btn.style.display = '');
-            }, 1000);
-        }
-        
-        function renderCategoryChart(chartData) {
-            const ctx = document.getElementById('categoryPieChart');
-            
-            if (currentCategoryChart) {
-                currentCategoryChart.destroy();
-            }
-            
-            currentCategoryChart = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: chartData.labels,
-                    datasets: [{
-                        data: chartData.values,
-                        backgroundColor: chartData.colors,
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: {
-                                font: {
-                                    size: 14,
-                                    family: "'Space Grotesk', sans-serif"
-                                },
-                                padding: 15
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return `${label}: ${value} (${percentage}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        function renderLocationChart(chartData) {
-            const ctx = document.getElementById('locationPieChart');
-            
-            if (currentLocationChart) {
-                currentLocationChart.destroy();
-            }
-            
-            currentLocationChart = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: chartData.labels,
-                    datasets: [{
-                        data: chartData.values,
-                        backgroundColor: chartData.colors,
-                        borderWidth: 2,
-                        borderColor: '#fff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: {
-                                font: {
-                                    size: 14,
-                                    family: "'Space Grotesk', sans-serif"
-                                },
-                                padding: 15
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return `${label}: ${value} (${percentage}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        function openContactModal(districtName) {
-            currentDistrict = districtName;
-            document.getElementById('contactNames').value = '';
-            document.getElementById('contactModal').style.display = 'block';
-        }
-        
-        function skipContacts() {
-            document.getElementById('contactModal').style.display = 'none';
-            generateReport(currentDistrict, null);
-        }
-        
-        function confirmGenerate() {
-            const contactNames = document.getElementById('contactNames').value.trim();
-            document.getElementById('contactModal').style.display = 'none';
-            generateReport(currentDistrict, contactNames || null);
-        }
-        
-        // Close modal when clicking outside
-        window.onclick = function(event) {
-            const modal = document.getElementById('contactModal');
-            if (event.target == modal) {
-                modal.style.display = 'none';
-            }
-        }
-        
-        async function generateReport(districtName, contactNames) {
-            const messageArea = document.getElementById('messageArea');
-            let seconds = 0;
-            
-            // Show initial message with timer
-            const updateTimer = setInterval(() => {
-                seconds++;
-                const minutes = Math.floor(seconds / 60);
-                const secs = seconds % 60;
-                const timeStr = `${minutes}:${secs.toString().padStart(2, '0')}`;
-                messageArea.innerHTML = `<div class="message success">⏳ Generating enhanced report for ${districtName}... (${timeStr} elapsed)</div>`;
-            }, 1000);
-            
-            // Create AbortController with longer timeout
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
-            
-            try {
-                const response = await fetch('/api/generate-report', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        district_name: districtName,
-                        contact_names: contactNames
-                    }),
-                    signal: controller.signal,
-                    keepalive: true
-                });
-                
-                clearTimeout(timeoutId);
-                clearInterval(updateTimer);
-                
-                const result = await response.json();
-                
-                if (result.error) {
-                    showMessage(`❌ Error: ${result.error}`, 'error');
-                    return;
-                }
-                
-                showMessage(`✅ Report generated successfully for ${districtName}! (${Math.floor(seconds / 60)}m ${seconds % 60}s)`, 'success');
-                
-                // Reload reports list and cost stats
-                loadReports();
-                loadCostStats();
-                
-                // Auto-download the PDF
-                window.location.href = `/api/download/${result.pdf_filename}`;
-                
-            } catch (error) {
-                clearTimeout(timeoutId);
-                clearInterval(updateTimer);
-                
-                if (error.name === 'AbortError') {
-                    showMessage(`❌ Request timed out after 5 minutes. The report may still be generating. Check "Previous Reports" in a moment.`, 'error');
-                } else {
-                    showMessage(`❌ Error generating report: ${error.message}. Please try again.`, 'error');
-                }
-                console.error('Generate error:', error);
-            }
-        }
-        
-        async function loadCostStats() {
-            try {
-                const response = await fetch('/api/cost-stats');
-                const stats = await response.json();
-                
-                const costStatsDiv = document.getElementById('costStats');
-                costStatsDiv.innerHTML = `
-                    💰 Total: $${stats.total_cost.toFixed(2)} 
-                    <span>|</span> 
-                    📊 Reports: ${stats.total_reports} 
-                    <span>|</span> 
-                    📈 Avg: $${stats.avg_cost_per_report.toFixed(3)}/report
-                `;
-            } catch (error) {
-                console.error('Error loading cost stats:', error);
-            }
-        }
-        
-        async function loadReports() {
-            const reportsList = document.getElementById('reportsList');
-            reportsList.innerHTML = '<div class="loading"><p>Loading reports...</p></div>';
-            
-            try {
-                const response = await fetch('/api/reports');
-                const reports = await response.json();
-                
-                allReports = reports;
-                
-                if (reports.length === 0) {
-                    reportsList.innerHTML = '<p class="loading">No reports generated yet.</p>';
-                    return;
-                }
-                
-                displayReports(reports);
-                
-            } catch (error) {
-                reportsList.innerHTML = '<p class="loading" style="color: red;">Error loading reports.</p>';
-                console.error('Load reports error:', error);
-            }
-        }
-        
-        function filterReports() {
-            const searchTerm = document.getElementById('reportSearch').value.toLowerCase();
-            
-            if (!searchTerm) {
-                displayReports(allReports);
-                return;
-            }
-            
-            const filtered = allReports.filter(report => 
-                report.district_name.toLowerCase().includes(searchTerm)
+      }
+
+      function displayDemoScript(scriptData) {
+        const discoveryDiv = document.getElementById("discoveryQuestions");
+
+        // Add debugging
+        console.log("Script Data:", scriptData);
+
+        try {
+          // Safely access nested properties
+          const basicData = scriptData.basic_data || {};
+          const demographics = basicData.demographics || {};
+          const hasJobData = scriptData.has_job_data || false;
+
+          // Format the demo script (assuming it comes as formatted text)
+          const scriptText =
+            scriptData.demo_script || "No script content available";
+
+          // Convert the script text to HTML with proper formatting
+          let formattedScript = scriptText
+            .replace(
+              /## (.+)/g,
+              "<h4 style=\"color: #02223C; font-family: 'Space Grotesk', sans-serif; margin: 20px 0 10px 0;\">$1</h4>",
+            )
+            .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+            .replace(
+              /• (.+)/g,
+              '<div class="question-item"><p class="question-text">$1</p></div>',
+            )
+            .replace(
+              /\[Source: ([^\]]+)\]/g,
+              '<a href="$1" target="_blank" class="source-link">[Source]</a>',
+            )
+            .replace(/\n\n/g, "</p><p>")
+            .replace(
+              /^\d+\.\s+(.+)$/gm,
+              '<h4 style="color: #116753; font-family: \'Space Grotesk\', sans-serif; margin: 20px 0 10px 0; font-size: 18px;"><span class="question-icon">📋</span> $1</h4>',
             );
-            
-            displayReports(filtered);
+
+          let html = `
+                          <div class="data-insight" style="margin-bottom: 20px;">
+                              <h5>📊 District Quick Facts</h5>
+                              <div class="insight-stat">
+                                  <span class="stat-label">District Size:</span>
+                                  <span class="stat-value">${(basicData.enrollment || 0).toLocaleString()} students</span>
+                              </div>
+                              <div class="insight-stat">
+                                  <span class="stat-label">Number of Schools:</span>
+                                  <span class="stat-value">${basicData.num_schools || 0}</span>
+                              </div>
+                              ${
+                                hasJobData
+                                  ? `
+                              <div class="insight-stat">
+                                  <span class="stat-label">Current Job Postings:</span>
+                                  <span class="stat-value">${basicData.total_jobs || 0}</span>
+                              </div>
+                              `
+                                  : `
+                              <div class="insight-stat" style="background: #FED46B; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                                  <span class="stat-label" style="color: #02223C;">⚠️ Job Data:</span>
+                                  <span style="color: #02223C; font-weight: 600;">Not available - District may not use Applitrack</span>
+                              </div>
+                              `
+                              }
+                              <div class="insight-stat">
+                                  <span class="stat-label">Free/Reduced Lunch:</span>
+                                  <span class="stat-value">${demographics.free_reduced_lunch_pct || "N/A"}%</span>
+                              </div>
+                              <div class="insight-stat">
+                                  <span class="stat-label">Minority Population:</span>
+                                  <span class="stat-value">${demographics.minority_pct || "N/A"}%</span>
+                              </div>
+                          </div>
+
+                          <div class="analysis-content" style="background: white; padding: 20px; border-radius: 8px;">
+                              ${formattedScript}
+                          </div>
+                      `;
+
+          discoveryDiv.innerHTML = html;
+        } catch (error) {
+          console.error("Error displaying demo script:", error);
+          discoveryDiv.innerHTML = `
+                          <div class="preview-error">
+                              <strong>Error displaying demo script:</strong><br>
+                              ${error.message}<br><br>
+                              <strong>Debug Info:</strong><br>
+                              <pre>${JSON.stringify(scriptData, null, 2)}</pre>
+                          </div>
+                      `;
         }
-        
-        function displayReports(reports) {
-            const reportsList = document.getElementById('reportsList');
-            
-            if (reports.length === 0) {
-                reportsList.innerHTML = '<p class="loading">No reports match your search.</p>';
-                return;
-            }
-            
-            reportsList.innerHTML = reports.map(report => {
-                const date = new Date(report.created).toLocaleString();
-                const sizeMB = (report.size / 1024 / 1024).toFixed(2);
-                const reportId = report.filename.replace(/[^a-zA-Z0-9]/g, '_');
-                const cost = report.estimated_cost || 0;
-                
-                return `
-                    <div class="report-item">
-                        <div class="report-info">
-                            <h4>${report.district_name}</h4>
-                            <small>Created: ${date} | Size: ${sizeMB} MB | Cost: $${cost.toFixed(3)}</small>
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-view" onclick="toggleReportPreview('${reportId}', '${report.filename}')">
-                                👁️ View
-                            </button>
-                            <button class="btn btn-download" onclick="downloadReport('${report.filename}')">
-                                Download PDF
-                            </button>
-                        </div>
-                    </div>
-                    <div id="preview_${reportId}" class="report-preview" style="display: none;">
-                        <div class="preview-loading">Loading preview...</div>
-                    </div>
-                `;
-            }).join('');
+      }
+
+      function hideDemo() {
+        document.getElementById("demoSection").style.display = "none";
+      }
+
+      let currentCategoryChart = null;
+      let currentLocationChart = null;
+
+      function showHRReport(districtName) {
+        // Open in new window instead of inline
+        window.open(
+          `/hr-report-view/${encodeURIComponent(districtName)}`,
+          "_blank",
+          "width=1200,height=800",
+        );
+      }
+
+      async function generateHRReport(districtName) {
+        try {
+          const response = await fetch("/api/generate-hr-report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ district_name: districtName }),
+          });
+
+          const result = await response.json();
+
+          if (result.error) {
+            document.getElementById("hrReportContent").innerHTML =
+              `<div class="preview-error">
+                    <strong>${result.error}</strong><br>
+                    ${result.message || "This district may not have scraped Applitrack jobs yet."}
+                </div>`;
+            return;
+          }
+
+          result.report.pdf_filename = result.pdf_filename;
+
+          displayHRReport(result.report);
+        } catch (error) {
+          console.error("Error generating HR report:", error);
+          document.getElementById("hrReportContent").innerHTML =
+            '<div class="preview-error">Error generating HR report. Please try again.</div>';
         }
-        
-        async function toggleReportPreview(reportId, filename) {
-            const previewDiv = document.getElementById(`preview_${reportId}`);
-            
-            if (previewDiv.style.display === 'block') {
-                previewDiv.style.display = 'none';
-                return;
-            }
-            
-            previewDiv.style.display = 'block';
-            previewDiv.innerHTML = '<div class="preview-loading"><div class="spinner"></div><p>Loading report preview...</p></div>';
-            
-            try {
-                const response = await fetch(`/api/report-preview/${filename}`);
-                const data = await response.json();
-                
-                if (data.error) {
-                    previewDiv.innerHTML = `<div class="preview-error">Error loading preview: ${data.error}</div>`;
-                    return;
-                }
-                
-                const report = data.report_json;
-                const demographics = report.basic_data.demographics || {};
-                
-                let formattedAnalysis = report.claude_analysis
-                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                    .replace(/\n\n/g, '</p><p>')
-                    .replace(/^\d+\.\s+(.+)$/gm, '<h5 class="analysis-header">$1</h5>')
-                    .replace(/\[Source:\s*([^\]]+)\]/g, '<a href="$1" target="_blank" class="source-link">[Source]</a>');
-                
-                let previewHTML = `
-                    <div class="preview-content">
-                        <div class="preview-header">
-                            <h3>${report.district_name}</h3>
-                            <button class="btn-close" onclick="toggleReportPreview('${reportId}', '${filename}')">✕</button>
-                        </div>
-                        
-                        <div class="preview-section">
-                            <h4>📋 Basic Information</h4>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <span class="info-label">Enrollment</span>
-                                    <span class="info-value">${report.basic_data.enrollment.toLocaleString()}</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Schools</span>
-                                    <span class="info-value">${report.basic_data.num_schools}</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Location</span>
-                                    <span class="info-value">${report.basic_data.county}, ${report.basic_data.state}</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Free/Reduced Lunch</span>
-                                    <span class="info-value">${demographics.free_reduced_lunch_pct || 'N/A'}%</span>
-                                </div>
-                                <div class="info-item">
-                                    <span class="info-label">Minority Population</span>
-                                    <span class="info-value">${demographics.minority_pct || 'N/A'}%</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="preview-section">
-                            <h4>🔗 Similar Districts</h4>
-                            <div class="similar-grid">
-                                ${report.similar_districts.map(d => `
-                                    <div class="similar-card">
-                                        <strong>${d.name}</strong>
-                                        <span>${d.county}</span>
-                                        <span>${d.enrollment.toLocaleString()} students</span>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        </div>
-                        
-                        <div class="preview-section">
-                            <h4>💼 Job Postings & Financial Analysis</h4>
-                            <div class="analysis-content">${report.job_scrape_info.replace(/\n/g, '<br>')}</div>
-                        </div>
-                        
-                        ${report.contact_research ? `
-                        <div class="preview-section">
-                            <h4>🤝 Contact Research</h4>
-                            <div class="analysis-content">${report.contact_research.replace(/\n/g, '<br>')}</div>
-                        </div>
-                        ` : ''}
-                        
-                        <div class="preview-section">
-                            <h4>🤖 Comprehensive Analysis</h4>
-                            <div class="analysis-content"><p>${formattedAnalysis}</p></div>
-                        </div>
-                    </div>
-                `;
-                
-                previewDiv.innerHTML = previewHTML;
-                
-            } catch (error) {
-                previewDiv.innerHTML = `<div class="preview-error">Error loading preview: ${error.message}</div>`;
-                console.error('Preview error:', error);
-            }
+      }
+
+      function hideHRReport() {
+        document.getElementById("hrReportSection").style.display = "none";
+        if (currentCategoryChart) {
+          currentCategoryChart.destroy();
+          currentCategoryChart = null;
         }
-        
-        function downloadReport(filename) {
-            window.location.href = `/api/download/${filename}`;
+        if (currentLocationChart) {
+          currentLocationChart.destroy();
+          currentLocationChart = null;
         }
-        
-        // Allow Enter key to trigger search
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputs = document.querySelectorAll('input, select');
-            inputs.forEach(input => {
-                input.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') {
-                        searchDistricts();
-                    }
-                });
-            });
+      }
+
+      function displayHRReport(report) {
+        const contentDiv = document.getElementById("hrReportContent");
+        const score = report.quality_report.overall_quality_score;
+        let scoreClass = "score-poor";
+        if (score >= 80) scoreClass = "score-excellent";
+        else if (score >= 65) scoreClass = "score-good";
+        else if (score >= 50) scoreClass = "score-fair";
+
+        let html = `
+                      <div class="metric-grid">
+                          <div class="metric-card">
+                              <div class="metric-value">${report.total_jobs}</div>
+                              <div class="metric-label">Total Open Jobs</div>
+                          </div>
+                          <div class="metric-card">
+                              <div class="metric-value quality-score ${scoreClass}">${score}</div>
+                              <div class="metric-label">Overall Quality Score</div>
+                          </div>
+                          <div class="metric-card">
+                              <div class="metric-value">${Math.round(report.quality_report.avg_word_count)}</div>
+                              <div class="metric-label">Average Word Count</div>
+                          </div>
+                          <div class="metric-card">
+                              <div class="metric-value">${report.analysis.total_categories}</div>
+                              <div class="metric-label">Job Categories</div>
+                          </div>
+                      </div>
+
+                      <div class="demo-card">
+                          <div class="demo-card-header">
+                              <span class="demo-number">1</span>
+                              <h3>Open Positions by Category</h3>
+                          </div>
+                          <div class="demo-card-body">
+                              <div class="chart-container">
+                                  <canvas id="categoryPieChart" width="400" height="200"></canvas>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div class="demo-card">
+                          <div class="demo-card-header">
+                              <span class="demo-number">2</span>
+                              <h3>Open Positions by Location</h3>
+                          </div>
+                          <div class="demo-card-body">
+                              <div class="chart-container">
+                                  <canvas id="locationPieChart" width="400" height="200"></canvas>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div class="demo-card">
+                          <div class="demo-card-header">
+                              <span class="demo-number">3</span>
+                              <h3>Average Days Open by Category</h3>
+                          </div>
+                          <div class="demo-card-body">
+                              ${generateDaysOpenTable(report.analysis.by_category)}
+                          </div>
+                      </div>
+
+                      <div class="demo-card">
+                          <div class="demo-card-header">
+                              <span class="demo-number">4</span>
+                              <h3>Top Performing Job Postings</h3>
+                          </div>
+                          <div class="demo-card-body">
+                              ${generateJobCards(report.quality_report.top_performing_jobs, "excellent")}
+                          </div>
+                      </div>
+
+                      <div class="demo-card">
+                          <div class="demo-card-header">
+                              <span class="demo-number">5</span>
+                              <h3>Improvement Opportunities</h3>
+                          </div>
+                          <div class="demo-card-body">
+                              ${generateJobCards(report.quality_report.improvement_opportunities, "poor")}
+                          </div>
+                      </div>
+                  `;
+        contentDiv.innerHTML = html;
+        renderCategoryChart(report.charts.category_chart);
+        renderLocationChart(report.charts.location_chart);
+
+        const downloadBtn = document.getElementById("hrDownloadBtn");
+        if (downloadBtn) {
+          downloadBtn.style.display = "block";
+          downloadBtn.onclick = () => downloadHRReportPDF(report.pdf_filename);
+        }
+
+        // Store report for PDF generation
+        window.currentHRReport = report;
+      }
+
+      function generateDaysOpenTable(byCategory) {
+        // Convert to array and sort by avg_days_open (highest to lowest)
+        const sortedCategories = Object.entries(byCategory).sort(
+          (a, b) => b[1].avg_days_open - a[1].avg_days_open,
+        );
+
+        let html = '<table style="width: 100%; border-collapse: collapse;">';
+        html +=
+          '<thead><tr style="background: #f8f9fa; border-bottom: 2px solid #116753;">';
+        html += '<th style="padding: 12px; text-align: left;">Category</th>';
+        html += '<th style="padding: 12px; text-align: center;">Count</th>';
+        html +=
+          '<th style="padding: 12px; text-align: center;">Avg Days Open</th>';
+        html += "</tr></thead><tbody>";
+
+        for (const [category, data] of sortedCategories) {
+          const daysClass =
+            data.avg_days_open > 60 ? "color: #ef4444; font-weight: 700;" : "";
+          html += `<tr style="border-bottom: 1px solid #e0e0e0;">`;
+          html += `<td style="padding: 12px;"><strong>${category}</strong></td>`;
+          html += `<td style="padding: 12px; text-align: center;">${data.count}</td>`;
+          html += `<td style="padding: 12px; text-align: center; ${daysClass}">${data.avg_days_open} days</td>`;
+          html += `</tr>`;
+        }
+
+        html += "</tbody></table>";
+        return html;
+      }
+
+      function generateJobCards(jobs, type) {
+        if (!jobs || jobs.length === 0) {
+          return '<p style="color: #666; font-style: italic;">No jobs in this category.</p>';
+        }
+
+        return jobs
+          .map((job, index) => {
+            const scoreClass =
+              job.quality_score >= 80
+                ? "score-excellent"
+                : job.quality_score >= 65
+                  ? "score-good"
+                  : job.quality_score >= 50
+                    ? "score-fair"
+                    : "score-poor";
+
+            const cardId = `job-${type}-${index}`;
+
+            return `
+                          <div class="job-quality-card ${type}">
+                              <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
+                                  <div>
+                                      <strong style="font-size: 16px; color: #02223C;">${job.title}</strong><br>
+                                      <span style="color: #666; font-size: 14px;">${job.school} • ${job.category}</span><br>
+                                      <span style="color: #999; font-size: 12px;">Word Count: ${job.word_count || "N/A"}</span>
+                                  </div>
+                                  <span class="quality-score ${scoreClass}" style="font-size: 14px; padding: 6px 12px;">
+                                      ${job.quality_score}
+                                  </span>
+                              </div>
+
+                              ${
+                                job.reasons && job.reasons.length > 0
+                                  ? `
+                                  <div style="margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                                      <strong style="font-size: 13px; color: #02223C;">Why this score:</strong>
+                                      ${job.reasons.map((reason) => `<div style="margin: 4px 0; font-size: 13px;">${reason}</div>`).join("")}
+                                  </div>
+                              `
+                                  : ""
+                              }
+
+                              ${
+                                job.full_description
+                                  ? `
+                                  <button
+                                      onclick="toggleJobDescription('${cardId}')"
+                                      style="background: #116753; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; margin-top: 10px;"
+                                  >
+                                      📄 View Full Description
+                                  </button>
+                                  <div id="${cardId}" style="display: none; margin-top: 10px; padding: 15px; background: white; border: 1px solid #e0e0e0; border-radius: 6px; max-height: 300px; overflow-y: auto;">
+                                      <strong style="display: block; margin-bottom: 10px; color: #02223C;">Full Job Description:</strong>
+                                      <div style="white-space: pre-wrap; font-size: 13px; line-height: 1.6; color: #333;">${job.full_description}</div>
+                                  </div>
+                              `
+                                  : ""
+                              }
+                          </div>
+                      `;
+          })
+          .join("");
+      }
+
+      function toggleJobDescription(cardId) {
+        const element = document.getElementById(cardId);
+        if (element.style.display === "none") {
+          element.style.display = "block";
+        } else {
+          element.style.display = "none";
+        }
+      }
+
+      function downloadHRReportPDF(filename) {
+        window.print();
+        setTimeout(() => {
+          document.title = originalTitle;
+          buttons.forEach((btn) => (btn.style.display = ""));
+        }, 1000);
+      }
+
+      function renderCategoryChart(chartData) {
+        const ctx = document.getElementById("categoryPieChart");
+
+        if (currentCategoryChart) {
+          currentCategoryChart.destroy();
+        }
+
+        currentCategoryChart = new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: chartData.labels,
+            datasets: [
+              {
+                data: chartData.values,
+                backgroundColor: chartData.colors,
+                borderWidth: 2,
+                borderColor: "#fff",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "right",
+                labels: {
+                  font: {
+                    size: 14,
+                    family: "'Space Grotesk', sans-serif",
+                  },
+                  padding: 15,
+                },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const label = context.label || "";
+                    const value = context.parsed || 0;
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0,
+                    );
+                    const percentage = ((value / total) * 100).toFixed(1);
+                    return `${label}: ${value} (${percentage}%)`;
+                  },
+                },
+              },
+            },
+          },
         });
+      }
+
+      function renderLocationChart(chartData) {
+        const ctx = document.getElementById("locationPieChart");
+
+        if (currentLocationChart) {
+          currentLocationChart.destroy();
+        }
+
+        currentLocationChart = new Chart(ctx, {
+          type: "pie",
+          data: {
+            labels: chartData.labels,
+            datasets: [
+              {
+                data: chartData.values,
+                backgroundColor: chartData.colors,
+                borderWidth: 2,
+                borderColor: "#fff",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "right",
+                labels: {
+                  font: {
+                    size: 14,
+                    family: "'Space Grotesk', sans-serif",
+                  },
+                  padding: 15,
+                },
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const label = context.label || "";
+                    const value = context.parsed || 0;
+                    const total = context.dataset.data.reduce(
+                      (a, b) => a + b,
+                      0,
+                    );
+                    const percentage = ((value / total) * 100).toFixed(1);
+                    return `${label}: ${value} (${percentage}%)`;
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+
+      function openContactModal(districtName) {
+        currentDistrict = districtName;
+        document.getElementById("contactNames").value = "";
+        document.getElementById("contactModal").style.display = "block";
+      }
+
+      function skipContacts() {
+        document.getElementById("contactModal").style.display = "none";
+        generateReport(currentDistrict, null);
+      }
+
+      function confirmGenerate() {
+        const contactNames = document
+          .getElementById("contactNames")
+          .value.trim();
+        document.getElementById("contactModal").style.display = "none";
+        generateReport(currentDistrict, contactNames || null);
+      }
+
+      // Close modal when clicking outside
+      window.onclick = function (event) {
+        const modal = document.getElementById("contactModal");
+        if (event.target == modal) {
+          modal.style.display = "none";
+        }
+      };
+
+      async function generateReport(districtName, contactNames) {
+        const messageArea = document.getElementById("messageArea");
+        let seconds = 0;
+
+        // Show initial message with timer
+        const updateTimer = setInterval(() => {
+          seconds++;
+          const minutes = Math.floor(seconds / 60);
+          const secs = seconds % 60;
+          const timeStr = `${minutes}:${secs.toString().padStart(2, "0")}`;
+          messageArea.innerHTML = `<div class="message success">⏳ Generating enhanced report for ${districtName}... (${timeStr} elapsed)</div>`;
+        }, 1000);
+
+        // Create AbortController with longer timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minute timeout
+
+        try {
+          const response = await fetch("/api/generate-report", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              district_name: districtName,
+              contact_names: contactNames,
+            }),
+            signal: controller.signal,
+            keepalive: true,
+          });
+
+          clearTimeout(timeoutId);
+          clearInterval(updateTimer);
+
+          const result = await response.json();
+
+          if (result.error) {
+            showMessage(`❌ Error: ${result.error}`, "error");
+            return;
+          }
+
+          showMessage(
+            `✅ Report generated successfully for ${districtName}! (${Math.floor(seconds / 60)}m ${seconds % 60}s)`,
+            "success",
+          );
+
+          // Reload reports list and cost stats
+          loadReports();
+          loadCostStats();
+
+          // Auto-download the PDF
+          window.location.href = `/api/download/${result.pdf_filename}`;
+        } catch (error) {
+          clearTimeout(timeoutId);
+          clearInterval(updateTimer);
+
+          if (error.name === "AbortError") {
+            showMessage(
+              `❌ Request timed out after 5 minutes. The report may still be generating. Check "Previous Reports" in a moment.`,
+              "error",
+            );
+          } else {
+            showMessage(
+              `❌ Error generating report: ${error.message}. Please try again.`,
+              "error",
+            );
+          }
+          console.error("Generate error:", error);
+        }
+      }
+
+      async function loadCostStats() {
+        try {
+          const response = await fetch("/api/cost-stats");
+          const stats = await response.json();
+
+          const costStatsDiv = document.getElementById("costStats");
+          costStatsDiv.innerHTML = `
+                          💰 Total: $${stats.total_cost.toFixed(2)}
+                          <span>|</span>
+                          📊 Reports: ${stats.total_reports}
+                          <span>|</span>
+                          📈 Avg: $${stats.avg_cost_per_report.toFixed(3)}/report
+                      `;
+        } catch (error) {
+          console.error("Error loading cost stats:", error);
+        }
+      }
+
+      async function loadReports() {
+        const reportsList = document.getElementById("reportsList");
+        reportsList.innerHTML =
+          '<div class="loading"><p>Loading reports...</p></div>';
+
+        try {
+          const response = await fetch("/api/reports");
+          const reports = await response.json();
+
+          allReports = reports;
+
+          if (reports.length === 0) {
+            reportsList.innerHTML =
+              '<p class="loading">No reports generated yet.</p>';
+            return;
+          }
+
+          displayReports(reports);
+        } catch (error) {
+          reportsList.innerHTML =
+            '<p class="loading" style="color: red;">Error loading reports.</p>';
+          console.error("Load reports error:", error);
+        }
+      }
+
+      function filterReports() {
+        const searchTerm = document
+          .getElementById("reportSearch")
+          .value.toLowerCase();
+
+        if (!searchTerm) {
+          displayReports(allReports);
+          return;
+        }
+
+        const filtered = allReports.filter((report) =>
+          report.district_name.toLowerCase().includes(searchTerm),
+        );
+
+        displayReports(filtered);
+      }
+
+      function displayReports(reports) {
+        const reportsList = document.getElementById("reportsList");
+
+        if (reports.length === 0) {
+          reportsList.innerHTML =
+            '<p class="loading">No reports match your search.</p>';
+          return;
+        }
+
+        reportsList.innerHTML = reports
+          .map((report) => {
+            const date = new Date(report.created).toLocaleString();
+            const sizeMB = (report.size / 1024 / 1024).toFixed(2);
+            const reportId = report.filename.replace(/[^a-zA-Z0-9]/g, "_");
+            const cost = report.estimated_cost || 0;
+
+            return `
+                          <div class="report-item">
+                              <div class="report-info">
+                                  <h4>${report.district_name}</h4>
+                                  <small>Created: ${date} | Size: ${sizeMB} MB | Cost: $${cost.toFixed(3)}</small>
+                              </div>
+                              <div style="display: flex; gap: 10px;">
+                                  <button class="btn btn-view" onclick="toggleReportPreview('${reportId}', '${report.filename}')">
+                                      👁️ View
+                                  </button>
+                                  <button class="btn btn-download" onclick="downloadReport('${report.filename}')">
+                                      Download PDF
+                                  </button>
+                              </div>
+                          </div>
+                          <div id="preview_${reportId}" class="report-preview" style="display: none;">
+                              <div class="preview-loading">Loading preview...</div>
+                          </div>
+                      `;
+          })
+          .join("");
+      }
+
+      async function toggleReportPreview(reportId, filename) {
+        const previewDiv = document.getElementById(`preview_${reportId}`);
+
+        if (previewDiv.style.display === "block") {
+          previewDiv.style.display = "none";
+          return;
+        }
+
+        previewDiv.style.display = "block";
+        previewDiv.innerHTML =
+          '<div class="preview-loading"><div class="spinner"></div><p>Loading report preview...</p></div>';
+
+        try {
+          const response = await fetch(`/api/report-preview/${filename}`);
+          const data = await response.json();
+
+          if (data.error) {
+            previewDiv.innerHTML = `<div class="preview-error">Error loading preview: ${data.error}</div>`;
+            return;
+          }
+
+          const report = data.report_json;
+          const demographics = report.basic_data.demographics || {};
+
+          let formattedAnalysis = report.claude_analysis
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+            .replace(/\n\n/g, "</p><p>")
+            .replace(/^\d+\.\s+(.+)$/gm, '<h5 class="analysis-header">$1</h5>')
+            .replace(
+              /\[Source:\s*([^\]]+)\]/g,
+              '<a href="$1" target="_blank" class="source-link">[Source]</a>',
+            );
+
+          let previewHTML = `
+                          <div class="preview-content">
+                              <div class="preview-header">
+                                  <h3>${report.district_name}</h3>
+                                  <button class="btn-close" onclick="toggleReportPreview('${reportId}', '${filename}')">✕</button>
+                              </div>
+
+                              <div class="preview-section">
+                                  <h4>📋 Basic Information</h4>
+                                  <div class="info-grid">
+                                      <div class="info-item">
+                                          <span class="info-label">Enrollment</span>
+                                          <span class="info-value">${report.basic_data.enrollment.toLocaleString()}</span>
+                                      </div>
+                                      <div class="info-item">
+                                          <span class="info-label">Schools</span>
+                                          <span class="info-value">${report.basic_data.num_schools}</span>
+                                      </div>
+                                      <div class="info-item">
+                                          <span class="info-label">Location</span>
+                                          <span class="info-value">${report.basic_data.county}, ${report.basic_data.state}</span>
+                                      </div>
+                                      <div class="info-item">
+                                          <span class="info-label">Free/Reduced Lunch</span>
+                                          <span class="info-value">${demographics.free_reduced_lunch_pct || "N/A"}%</span>
+                                      </div>
+                                      <div class="info-item">
+                                          <span class="info-label">Minority Population</span>
+                                          <span class="info-value">${demographics.minority_pct || "N/A"}%</span>
+                                      </div>
+                                  </div>
+                              </div>
+
+                              <div class="preview-section">
+                                  <h4>🔗 Similar Districts</h4>
+                                  <div class="similar-grid">
+                                      ${report.similar_districts
+                                        .map(
+                                          (d) => `
+                                          <div class="similar-card">
+                                              <strong>${d.name}</strong>
+                                              <span>${d.county}</span>
+                                              <span>${d.enrollment.toLocaleString()} students</span>
+                                          </div>
+                                      `,
+                                        )
+                                        .join("")}
+                                  </div>
+                              </div>
+
+                              <div class="preview-section">
+                                  <h4>💼 Job Postings & Financial Analysis</h4>
+                                  <div class="analysis-content">${report.job_scrape_info.replace(/\n/g, "<br>")}</div>
+                              </div>
+
+                              ${
+                                report.contact_research
+                                  ? `
+                              <div class="preview-section">
+                                  <h4>🤝 Contact Research</h4>
+                                  <div class="analysis-content">${report.contact_research.replace(/\n/g, "<br>")}</div>
+                              </div>
+                              `
+                                  : ""
+                              }
+
+                              <div class="preview-section">
+                                  <h4>🤖 Comprehensive Analysis</h4>
+                                  <div class="analysis-content"><p>${formattedAnalysis}</p></div>
+                              </div>
+                          </div>
+                      `;
+
+          previewDiv.innerHTML = previewHTML;
+        } catch (error) {
+          previewDiv.innerHTML = `<div class="preview-error">Error loading preview: ${error.message}</div>`;
+          console.error("Preview error:", error);
+        }
+      }
+
+      function downloadReport(filename) {
+        window.location.href = `/api/download/${filename}`;
+      }
+
+      // Allow Enter key to trigger search
+      document.addEventListener("DOMContentLoaded", function () {
+        const inputs = document.querySelectorAll("input, select");
+        inputs.forEach((input) => {
+          input.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+              searchDistricts();
+            }
+          });
+        });
+      });
     </script>
-</body>
+  </body>
 </html>
